@@ -33,16 +33,15 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Données en mémoire AVEC MISE À JOUR RÉELLE
+// Données en mémoire
 const users = new Map();
 const rooms = new Map();
 const tournaments = new Map();
 const leaderboard = new Map();
-const activePlayers = new Set(); // Pour suivre les joueurs connectés
+const activePlayers = new Set();
 
-// Initialisation des données AVEC MÉCANISMES RÉELS
+// Initialisation des données
 function initializeData() {
-  // Utilisateur admin par défaut
   users.set('admin', {
     id: '1',
     username: 'admin',
@@ -51,12 +50,10 @@ function initializeData() {
     stats: { totalGames: 0, wins: 0, totalScore: 0, level: 1 },
     createdAt: new Date()
   });
-
-  // Classement DYNAMIQUE - sera mis à jour automatiquement
   updateLeaderboard();
 }
 
-// Mettre à jour le classement automatiquement
+// Mettre à jour le classement
 function updateLeaderboard() {
   const allPlayers = Array.from(users.values())
     .map(user => ({
@@ -66,15 +63,12 @@ function updateLeaderboard() {
       level: user.stats.level
     }))
     .sort((a, b) => b.score - a.score)
-    .slice(0, 10); // Top 10
-
+    .slice(0, 10);
   leaderboard.set('all', allPlayers);
-  
-  // Émettre la mise à jour à tous les clients
   io.emit('leaderboard-update', allPlayers);
 }
 
-// API Routes AMÉLIORÉES
+// API Routes
 app.post('/api/register', async (req, res) => {
   try {
     const { username, password, email } = req.body;
@@ -96,8 +90,6 @@ app.post('/api/register', async (req, res) => {
     users.set(username, user);
     
     const token = jwt.sign({ userId: user.id, username }, 'gamehub-secret', { expiresIn: '7d' });
-    
-    // Mettre à jour le classement
     updateLeaderboard();
     
     res.json({ 
@@ -139,7 +131,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// NOUVELLE ROUTE : Lister les salles disponibles
+// API pour les salles
 app.get('/api/rooms/:game', (req, res) => {
   const game = req.params.game;
   const availableRooms = Array.from(rooms.values())
@@ -150,7 +142,6 @@ app.get('/api/rooms/:game', (req, res) => {
       status: room.status,
       game: room.game
     }));
-  
   res.json(availableRooms);
 });
 
@@ -158,7 +149,6 @@ app.get('/api/leaderboard/:game?', (req, res) => {
   const game = req.params.game || 'all';
   let data = leaderboard.get(game) || [];
   
-  // Si pas de données, générer des données de démonstration DYNAMIQUES
   if (data.length === 0) {
     data = [
       { username: 'ProGamer', score: 1250 + Math.floor(Math.random() * 500), avatar: 'P' },
@@ -184,7 +174,6 @@ app.get('/api/stats', (req, res) => {
       memory: Array.from(rooms.values()).filter(r => r.game === 'memory').length,
       snake: Array.from(rooms.values()).filter(r => r.game === 'snake').length
     },
-    // Ajouter des joueurs simulés pour rendre ça plus vivant
     simulatedPlayers: {
       morpion: Math.floor(Math.random() * 50) + 20,
       memory: Math.floor(Math.random() * 30) + 10,
@@ -212,16 +201,13 @@ function updateGlobalStats() {
     },
     timestamp: new Date()
   };
-  
   io.emit('global-stats-update', stats);
 }
 
-// WebSocket Events AMÉLIORÉS
+// WebSocket Events - VRAI MULTIJOUEUR
 io.on('connection', (socket) => {
   console.log('🔗 Nouveau joueur connecté:', socket.id);
   activePlayers.add(socket.id);
-  
-  // Mettre à jour les stats immédiatement
   updateGlobalStats();
 
   // Événement pour lister les salles
@@ -229,14 +215,14 @@ io.on('connection', (socket) => {
     const { game } = data;
     const availableRooms = Array.from(rooms.values())
       .filter(room => room.game === game && room.players.length < 2);
-    
     socket.emit('rooms-list', availableRooms);
   });
 
+  // REJOINDRE UNE SALLE - MULTIJOUEUR RÉEL
   socket.on('join-room', (data) => {
     const { game, playerName, roomId } = data;
     
-    // Utiliser un ID de salle fixe pour le jeu spécifique ou celui fourni
+    // Utiliser un ID de salle fixe pour que les joueurs se retrouvent
     const roomKey = roomId || `${game}-lobby`;
     
     let room = rooms.get(roomKey);
@@ -247,7 +233,7 @@ io.on('connection', (socket) => {
         players: [],
         status: 'waiting',
         createdAt: new Date(),
-        board: Array(9).fill(''), // État du jeu pour le morpion
+        board: Array(9).fill(''),
         currentPlayer: 'X'
       };
       rooms.set(roomKey, room);
@@ -278,7 +264,7 @@ io.on('connection', (socket) => {
 
       console.log(`🎮 ${playerName} a rejoint ${roomKey} (${room.players.length}/2 joueurs)`);
 
-      // Notifier TOUS les clients de la mise à jour
+      // Notifier TOUS les joueurs
       io.to(roomKey).emit('player-joined', {
         player,
         room: room,
@@ -296,74 +282,87 @@ io.on('connection', (socket) => {
           currentPlayer: 'X',
           roomId: roomKey
         });
+        console.log(`🚀 Partie démarrée dans ${roomKey}`);
       }
 
-      // Mettre à jour les stats globales
       updateGlobalStats();
     } else {
       socket.emit('room-full', { message: 'Salle pleine' });
     }
   });
 
+  // MOUVEMENT DE JEU - GESTION RÉELLE MULTIJOUEUR
   socket.on('game-move', (data) => {
     const { game, move, roomId } = data;
     const room = rooms.get(roomId);
     
     if (room && room.players.length === 2 && room.status === 'playing') {
-      // Mettre à jour l'état du jeu
-      if (room.board[move] === '') {
-        const currentPlayer = room.players.find(p => p.id === socket.id);
-        if (currentPlayer && currentPlayer.symbol === room.currentPlayer) {
-          room.board[move] = currentPlayer.symbol;
-          
-          // Vérifier s'il y a un gagnant
-          const winner = checkMorpionWinner(room.board);
-          const isBoardFull = room.board.every(cell => cell !== '');
-          
-          // Changer le joueur courant
-          room.currentPlayer = room.currentPlayer === 'X' ? 'O' : 'X';
-          rooms.set(roomId, room);
-          
-          // Transmettre le mouvement à tous les joueurs
-          io.to(roomId).emit('opponent-move', {
-            move,
-            symbol: currentPlayer.symbol,
-            playerName: currentPlayer.name,
-            timestamp: new Date(),
-            winner: winner,
-            gameOver: winner || isBoardFull,
-            board: room.board,
-            currentPlayer: room.currentPlayer
-          });
+      // Vérifier que c'est le tour du bon joueur
+      const currentPlayer = room.players.find(p => p.id === socket.id);
+      if (!currentPlayer || currentPlayer.symbol !== room.currentPlayer) {
+        socket.emit('not-your-turn', { message: "Ce n'est pas votre tour !" });
+        return;
+      }
 
-          // Mettre à jour les stats du gagnant
-          if (winner && users.has(currentPlayer.name)) {
-            const user = users.get(currentPlayer.name);
+      // Vérifier que la case est libre
+      if (room.board[move] === '') {
+        room.board[move] = currentPlayer.symbol;
+        
+        // Vérifier s'il y a un gagnant
+        const winner = checkMorpionWinner(room.board);
+        const isBoardFull = room.board.every(cell => cell !== '');
+        
+        // Changer le joueur courant
+        room.currentPlayer = room.currentPlayer === 'X' ? 'O' : 'X';
+        rooms.set(roomId, room);
+        
+        // Transmettre le mouvement à TOUS les joueurs
+        io.to(roomId).emit('game-state-update', {
+          board: room.board,
+          currentPlayer: room.currentPlayer,
+          move: move,
+          symbol: currentPlayer.symbol,
+          playerName: currentPlayer.name,
+          winner: winner,
+          gameOver: winner || isBoardFull,
+          room: room
+        });
+
+        console.log(`🎯 Mouvement ${move} par ${currentPlayer.name} dans ${roomId}`);
+
+        // Mettre à jour les stats du gagnant
+        if (winner) {
+          const winningPlayer = room.players.find(p => p.symbol === winner);
+          if (winningPlayer && users.has(winningPlayer.name)) {
+            const user = users.get(winningPlayer.name);
             user.stats.wins++;
             user.stats.totalScore += 10;
             user.stats.totalGames++;
-            users.set(currentPlayer.name, user);
+            users.set(winningPlayer.name, user);
             updateLeaderboard();
+            console.log(`🏆 ${winningPlayer.name} a gagné dans ${roomId}`);
           }
+        }
 
-          // Si partie terminée, réinitialiser après un délai
-          if (winner || isBoardFull) {
-            setTimeout(() => {
-              if (rooms.has(roomId)) {
-                const endedRoom = rooms.get(roomId);
-                endedRoom.board = Array(9).fill('');
-                endedRoom.status = 'waiting';
-                endedRoom.currentPlayer = 'X';
-                rooms.set(roomId, endedRoom);
-                
-                io.to(roomId).emit('game-reset', {
-                  message: 'Nouvelle partie dans 3 secondes...',
-                  board: endedRoom.board,
-                  currentPlayer: endedRoom.currentPlayer
-                });
-              }
-            }, 3000);
-          }
+        // Si partie terminée, réinitialiser après un délai
+        if (winner || isBoardFull) {
+          room.status = 'finished';
+          setTimeout(() => {
+            if (rooms.has(roomId)) {
+              const endedRoom = rooms.get(roomId);
+              endedRoom.board = Array(9).fill('');
+              endedRoom.status = 'playing';
+              endedRoom.currentPlayer = 'X';
+              rooms.set(roomId, endedRoom);
+              
+              io.to(roomId).emit('game-reset', {
+                message: 'Nouvelle partie !',
+                board: endedRoom.board,
+                currentPlayer: endedRoom.currentPlayer
+              });
+              console.log(`🔄 Nouvelle partie dans ${roomId}`);
+            }
+          }, 3000);
         }
       }
     }
@@ -376,7 +375,6 @@ io.on('connection', (socket) => {
     if (room) {
       const player = room.players.find(p => p.id === socket.id);
       if (player) {
-        // Diffuser le message à tous les joueurs de la salle
         io.to(roomId).emit('chat-message', {
           message,
           playerName: player.name,
@@ -413,7 +411,6 @@ io.on('connection', (socket) => {
         
         io.emit('tournament-updated', tournament);
         
-        // Démarrer le tournoi si plein
         if (tournament.participants.length >= tournament.maxPlayers) {
           tournament.status = 'active';
           startTournament(tournamentId);
@@ -455,7 +452,6 @@ io.on('connection', (socket) => {
       }
     });
     
-    // Retirer des joueurs actifs
     activePlayers.delete(socket.id);
     updateGlobalStats();
   });
@@ -464,9 +460,9 @@ io.on('connection', (socket) => {
 // Logique de victoire au morpion
 function checkMorpionWinner(board) {
   const lines = [
-    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Lignes
-    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Colonnes
-    [0, 4, 8], [2, 4, 6] // Diagonales
+    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+    [0, 4, 8], [2, 4, 6]
   ];
 
   for (const [a, b, c] of lines) {
@@ -481,17 +477,13 @@ function startTournament(tournamentId) {
   const tournament = tournaments.get(tournamentId);
   if (tournament) {
     console.log(`🏆 Démarrage du tournoi: ${tournament.name}`);
-    
-    // Générer un bracket simple
     tournament.bracket = generateBracket(tournament.participants);
     tournaments.set(tournamentId, tournament);
-    
     io.emit('tournament-started', tournament);
   }
 }
 
 function generateBracket(participants) {
-  // Bracket tournament simple
   const bracket = [];
   let currentRound = participants.map(p => ({ player: p, winner: null }));
   
@@ -511,14 +503,14 @@ function generateBracket(participants) {
     currentRound = nextRound;
   }
   
-  bracket.push(currentRound); // Finale
+  bracket.push(currentRound);
   return bracket;
 }
 
-// Mettre à jour périodiquement les stats pour simuler l'activité
+// Mettre à jour périodiquement les stats
 setInterval(() => {
   updateGlobalStats();
-}, 10000); // Toutes les 10 secondes
+}, 10000);
 
 // Initialiser les données
 initializeData();
@@ -527,5 +519,5 @@ const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => {
   console.log(`🎮 GameHub Server démarré sur le port ${PORT}`);
   console.log(`📍 URL: http://localhost:${PORT}`);
-  console.log(`🔗 Multijoueur activé - Les joueurs peuvent maintenant se voir et jouer ensemble!`);
+  console.log(`🎯 MULTIJOUEUR RÉEL ACTIVÉ - Les joueurs jouent VRAIMENT ensemble!`);
 });
