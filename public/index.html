@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>GameHub - VRAI Multijoueur</title>
+<title>GameHub - VRAI Multijoueur Fonctionnel</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bcryptjs/2.4.3/bcrypt.min.js"></script>
@@ -522,7 +522,7 @@ header{display:flex;justify-content:space-between;align-items:center;padding:20p
 
 <script>
 // =========================
-// SERVEUR BACKEND - VRAI MULTIJOUEUR
+// SERVEUR BACKEND - VRAI MULTIJOUEUR FONCTIONNEL
 // =========================
 class RealGameServer {
   constructor() {
@@ -586,8 +586,15 @@ class RealGameServer {
     });
 
     this.socket.on('not-your-turn', (data) => {
-      console.log('⏰ Pas votre tour:', data);
-      window.store.showToast(data.message, 'warning');
+      this.handleNotYourTurn(data);
+    });
+
+    this.socket.on('invalid-move', (data) => {
+      this.handleInvalidMove(data);
+    });
+
+    this.socket.on('invalid-game-state', (data) => {
+      this.handleInvalidGameState(data);
     });
 
     this.socket.on('player-left', (data) => {
@@ -614,10 +621,11 @@ class RealGameServer {
       if (ourPlayer) {
         window.morpionGame.playerSymbol = ourPlayer.symbol;
         window.morpionGame.currentPlayer = data.room.currentPlayer;
+        console.log(`🎯 Je suis le joueur ${ourPlayer.symbol} dans la salle ${data.room.id}`);
       }
       
       if (data.room.players.length === 2) {
-        window.store.showToast('Partie complète! Prêt à jouer contre un VRAI adversaire!', 'success');
+        window.store.showToast('🎮 Partie complète! Prêt à jouer contre un VRAI adversaire!', 'success');
       }
     }
   }
@@ -639,6 +647,29 @@ class RealGameServer {
     if (window.morpionGame && window.morpionGame.mode === 'online') {
       window.morpionGame.handleGameReset(data);
     }
+  }
+
+  handleNotYourTurn(data) {
+    console.log('⏰ Pas votre tour:', data);
+    window.store.showToast(data.message, 'warning');
+    // Réinitialiser l'affichage du plateau
+    if (window.morpionGame && window.morpionGame.mode === 'online') {
+      window.morpionGame.updateDisplay();
+    }
+  }
+
+  handleInvalidMove(data) {
+    console.log('❌ Mouvement invalide:', data);
+    window.store.showToast(data.message, 'error');
+    // Réinitialiser l'affichage du plateau
+    if (window.morpionGame && window.morpionGame.mode === 'online') {
+      window.morpionGame.updateDisplay();
+    }
+  }
+
+  handleInvalidGameState(data) {
+    console.log('❌ État de jeu invalide:', data);
+    window.store.showToast(data.message, 'error');
   }
 
   handlePlayerLeft(data) {
@@ -754,7 +785,10 @@ class RealGameServer {
   // Communication de jeu
   sendGameMove(game, move, roomId) {
     if (this.connected) {
+      console.log(`📤 Envoi mouvement: ${move} dans ${roomId}`);
       this.socket.emit('game-move', { game, move, roomId });
+    } else {
+      console.error('❌ Non connecté au serveur');
     }
   }
 
@@ -1332,10 +1366,10 @@ class ChatSystem {
 }
 
 // =========================
-// JEUX AVEC VRAI MULTIJOUEUR
+// JEUX AVEC VRAI MULTIJOUEUR FONCTIONNEL
 // =========================
 
-// Morpion avec VRAI multijoueur
+// Morpion avec VRAI multijoueur FONCTIONNEL
 let morpionGame = {
   board: [],
   currentPlayer: 'X',
@@ -1357,15 +1391,42 @@ let morpionGame = {
   },
 
   makeMove(position) {
-    if (!this.gameActive || this.board[position] !== '') return false;
+    console.log(`🎮 Tentative de mouvement: position ${position}, mode ${this.mode}, jeu actif: ${this.gameActive}`);
+    
+    if (!this.gameActive) {
+      console.log('❌ Jeu non actif');
+      window.store.showToast("La partie n'est pas active", 'warning');
+      return false;
+    }
+
+    if (this.board[position] !== '') {
+      console.log('❌ Case déjà occupée');
+      window.store.showToast("Case déjà occupée", 'warning');
+      return false;
+    }
 
     // En mode en ligne, envoyer le mouvement au serveur
     if (this.mode === 'online' && this.roomId) {
+      console.log(`📤 Envoi mouvement au serveur: position ${position}, salle ${this.roomId}`);
+      
+      // Vérifier que c'est notre tour
+      const isOurTurn = (this.currentPlayer === this.playerSymbol);
+      console.log(`🔍 Vérification tour: currentPlayer=${this.currentPlayer}, playerSymbol=${this.playerSymbol}, isOurTurn=${isOurTurn}`);
+      
+      if (!isOurTurn) {
+        window.store.showToast("⏳ En attente de l'adversaire...", 'info');
+        return false;
+      }
+
       window.server.sendGameMove('morpion', position, this.roomId);
+      
+      // NE PAS mettre à jour le plateau localement - attendre la confirmation du serveur
+      // Cela évite les désynchronisations
       return true;
     }
 
     // Mode solo contre IA
+    console.log('🤖 Mode solo contre IA');
     this.board[position] = this.currentPlayer;
     this.updateDisplay();
 
@@ -1426,7 +1487,7 @@ let morpionGame = {
     }
     
     this.updateStatus();
-    window.store.showToast('Partie commencée contre un VRAI adversaire! 🎮', 'success');
+    window.store.showToast('🎮 Partie commencée contre un VRAI adversaire!', 'success');
   },
 
   handleGameReset(data) {
@@ -1437,7 +1498,7 @@ let morpionGame = {
     this.updateDisplay();
     this.updateStatus();
     
-    window.store.showToast('Nouvelle partie! Prêt à jouer!', 'info');
+    window.store.showToast('🔄 Nouvelle partie! Prêt à jouer!', 'info');
   },
 
   checkWinner() {
@@ -1871,7 +1932,7 @@ async function initializeApp() {
     await loadInitialData();
     startRealTimeUpdates();
 
-    console.log('🎮 GameHub VRAI MULTIJOUEUR initialisé avec succès!');
+    console.log('🎮 GameHub VRAI MULTIJOUEUR FONCTIONNEL initialisé avec succès!');
 
   } catch (error) {
     console.error('Erreur d initialisation:', error);
@@ -2314,7 +2375,7 @@ window.addEventListener('unhandledrejection', (e) => {
   store.showToast('Erreur de chargement', 'error');
 });
 
-console.log('🚀 GameHub VRAI MULTIJOUEUR - Prêt à fonctionner!');
+console.log('🚀 GameHub VRAI MULTIJOUEUR FONCTIONNEL - Prêt à fonctionner!');
 </script>
 </body>
 </html>
