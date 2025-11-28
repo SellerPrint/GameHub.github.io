@@ -724,15 +724,28 @@ class RealGameServer {
     this.updateOnlineDisplays(data);
   }
 
-  updateOnlineDisplays(stats) {
-    document.getElementById('morpion-players').textContent = stats.games.morpion * 2;
-    document.getElementById('memory-players').textContent = stats.games.memory * 2;
-    document.getElementById('snake-players').textContent = stats.games.snake * 2;
-    
-    document.getElementById('morpion-online').textContent = stats.games.morpion;
-    document.getElementById('memory-online').textContent = stats.games.memory;
-    document.getElementById('snake-online').textContent = stats.games.snake;
+  // Dans la classe RealGameServer, remplacez la méthode updateOnlineDisplays :
+updateOnlineDisplays(stats) {
+  // Mettre à jour les compteurs avec données réelles + simulées
+  const totalMorpion = stats.games.morpion * 2 + (stats.simulatedPlayers?.morpion || 0);
+  const totalMemory = stats.games.memory * 2 + (stats.simulatedPlayers?.memory || 0);
+  const totalSnake = stats.games.snake * 2 + (stats.simulatedPlayers?.snake || 0);
+  
+  document.getElementById('morpion-players').textContent = totalMorpion;
+  document.getElementById('memory-players').textContent = totalMemory;
+  document.getElementById('snake-players').textContent = totalSnake;
+  
+  document.getElementById('morpion-online').textContent = stats.games.morpion + Math.floor((stats.simulatedPlayers?.morpion || 0) / 4);
+  document.getElementById('memory-online').textContent = stats.games.memory + Math.floor((stats.simulatedPlayers?.memory || 0) / 3);
+  document.getElementById('snake-online').textContent = stats.games.snake + Math.floor((stats.simulatedPlayers?.snake || 0) / 5);
+}
+
+// Ajoutez cette méthode pour gérer le début de partie
+handleGameStart(data) {
+  if (window.morpionGame && window.morpionGame.mode === 'online') {
+    window.morpionGame.handleGameStart(data);
   }
+}
 
   // API pour les données
   async getLeaderboard(game = 'all') {
