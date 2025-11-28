@@ -139,6 +139,21 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// NOUVELLE ROUTE : Lister les salles disponibles
+app.get('/api/rooms/:game', (req, res) => {
+  const game = req.params.game;
+  const availableRooms = Array.from(rooms.values())
+    .filter(room => room.game === game && room.players.length < 2)
+    .map(room => ({
+      id: room.id,
+      players: room.players.length,
+      status: room.status,
+      game: room.game
+    }));
+  
+  res.json(availableRooms);
+});
+
 app.get('/api/leaderboard/:game?', (req, res) => {
   const game = req.params.game || 'all';
   let data = leaderboard.get(game) || [];
@@ -209,9 +224,20 @@ io.on('connection', (socket) => {
   // Mettre à jour les stats immédiatement
   updateGlobalStats();
 
+  // Événement pour lister les salles
+  socket.on('list-rooms', (data) => {
+    const { game } = data;
+    const availableRooms = Array.from(rooms.values())
+      .filter(room => room.game === game && room.players.length < 2);
+    
+    socket.emit('rooms-list', availableRooms);
+  });
+
   socket.on('join-room', (data) => {
     const { game, playerName, roomId } = data;
-    const roomKey = roomId || `${game}-lobby-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Utiliser un ID de salle fixe pour le jeu spécifique ou celui fourni
+    const roomKey = roomId || `${game}-lobby`;
     
     let room = rooms.get(roomKey);
     if (!room) {
@@ -221,16 +247,28 @@ io.on('connection', (socket) => {
         players: [],
         status: 'waiting',
         createdAt: new Date(),
-        board: Array(9).fill('') // État du jeu pour le morpion
+        board: Array(9).fill(''), // État du jeu pour le morpion
+        currentPlayer: 'X'
       };
       rooms.set(roomKey, room);
     }
 
-    if (room.players.length < 2) { // Limite à 2 joueurs pour le morpion
+    if (room.players.length < 2) {
+      // Vérifier si le joueur n'est pas déjà dans la salle
+      const existingPlayer = room.players.find(p => p.id === socket.id);
+      if (existingPlayer) {
+        socket.emit('room-joined', {
+          player: existingPlayer,
+          room: room,
+          players: room.players
+        });
+        return;
+      }
+
       const player = {
         id: socket.id,
         name: playerName,
-        symbol: room.players.length === 0 ? 'X' : 'O', // X pour le premier, O pour le second
+        symbol: room.players.length === 0 ? 'X' : 'O',
         joinedAt: new Date()
       };
       
@@ -238,7 +276,9 @@ io.on('connection', (socket) => {
       socket.join(roomKey);
       rooms.set(roomKey, room);
 
-      // Notifier tous les joueurs de la salle
+      console.log(`🎮 ${playerName} a rejoint ${roomKey} (${room.players.length}/2 joueurs)`);
+
+      // Notifier TOUS les clients de la mise à jour
       io.to(roomKey).emit('player-joined', {
         player,
         room: room,
@@ -247,17 +287,19 @@ io.on('connection', (socket) => {
 
       // Si 2 joueurs sont présents, démarrer la partie
       if (room.players.length === 2) {
+        room.status = 'playing';
+        rooms.set(roomKey, room);
+        
         io.to(roomKey).emit('game-start', {
           message: 'Partie commencée!',
           players: room.players,
-          currentPlayer: 'X'
+          currentPlayer: 'X',
+          roomId: roomKey
         });
       }
 
       // Mettre à jour les stats globales
       updateGlobalStats();
-      
-      console.log(`🎮 ${playerName} a rejoint ${roomKey} (${room.players.length}/2 joueurs)`);
     } else {
       socket.emit('room-full', { message: 'Salle pleine' });
     }
@@ -267,17 +309,20 @@ io.on('connection', (socket) => {
     const { game, move, roomId } = data;
     const room = rooms.get(roomId);
     
-    if (room && room.players.length === 2) {
+    if (room && room.players.length === 2 && room.status === 'playing') {
       // Mettre à jour l'état du jeu
       if (room.board[move] === '') {
         const currentPlayer = room.players.find(p => p.id === socket.id);
-        if (currentPlayer) {
+        if (currentPlayer && currentPlayer.symbol === room.currentPlayer) {
           room.board[move] = currentPlayer.symbol;
-          rooms.set(roomId, room);
           
           // Vérifier s'il y a un gagnant
           const winner = checkMorpionWinner(room.board);
           const isBoardFull = room.board.every(cell => cell !== '');
+          
+          // Changer le joueur courant
+          room.currentPlayer = room.currentPlayer === 'X' ? 'O' : 'X';
+          rooms.set(roomId, room);
           
           // Transmettre le mouvement à tous les joueurs
           io.to(roomId).emit('opponent-move', {
@@ -287,7 +332,8 @@ io.on('connection', (socket) => {
             timestamp: new Date(),
             winner: winner,
             gameOver: winner || isBoardFull,
-            board: room.board
+            board: room.board,
+            currentPlayer: room.currentPlayer
           });
 
           // Mettre à jour les stats du gagnant
@@ -298,6 +344,25 @@ io.on('connection', (socket) => {
             user.stats.totalGames++;
             users.set(currentPlayer.name, user);
             updateLeaderboard();
+          }
+
+          // Si partie terminée, réinitialiser après un délai
+          if (winner || isBoardFull) {
+            setTimeout(() => {
+              if (rooms.has(roomId)) {
+                const endedRoom = rooms.get(roomId);
+                endedRoom.board = Array(9).fill('');
+                endedRoom.status = 'waiting';
+                endedRoom.currentPlayer = 'X';
+                rooms.set(roomId, endedRoom);
+                
+                io.to(roomId).emit('game-reset', {
+                  message: 'Nouvelle partie dans 3 secondes...',
+                  board: endedRoom.board,
+                  currentPlayer: endedRoom.currentPlayer
+                });
+              }
+            }, 3000);
           }
         }
       }
@@ -315,7 +380,8 @@ io.on('connection', (socket) => {
         io.to(roomId).emit('chat-message', {
           message,
           playerName: player.name,
-          timestamp: new Date()
+          timestamp: new Date(),
+          roomId: roomId
         });
       }
     }
@@ -370,8 +436,16 @@ io.on('connection', (socket) => {
         if (room.players.length > 0) {
           io.to(roomId).emit('player-left', {
             playerName,
-            players: room.players
+            players: room.players,
+            message: `${playerName} a quitté la partie`
           });
+          
+          // Réinitialiser la partie si un joueur quitte
+          room.board = Array(9).fill('');
+          room.status = 'waiting';
+          room.currentPlayer = 'X';
+          rooms.set(roomId, room);
+          
         } else {
           // Supprimer la salle si vide
           rooms.delete(roomId);
@@ -453,4 +527,5 @@ const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => {
   console.log(`🎮 GameHub Server démarré sur le port ${PORT}`);
   console.log(`📍 URL: http://localhost:${PORT}`);
+  console.log(`🔗 Multijoueur activé - Les joueurs peuvent maintenant se voir et jouer ensemble!`);
 });
