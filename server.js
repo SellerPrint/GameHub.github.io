@@ -204,7 +204,7 @@ function updateGlobalStats() {
   io.emit('global-stats-update', stats);
 }
 
-// WebSocket Events - VRAI MULTIJOUEUR
+// WebSocket Events - VRAI MULTIJOUEUR FONCTIONNEL
 io.on('connection', (socket) => {
   console.log('🔗 Nouveau joueur connecté:', socket.id);
   activePlayers.add(socket.id);
@@ -218,7 +218,7 @@ io.on('connection', (socket) => {
     socket.emit('rooms-list', availableRooms);
   });
 
-  // REJOINDRE UNE SALLE - MULTIJOUEUR RÉEL
+  // REJOINDRE UNE SALLE
   socket.on('join-room', (data) => {
     const { game, playerName, roomId } = data;
     
@@ -262,7 +262,7 @@ io.on('connection', (socket) => {
       socket.join(roomKey);
       rooms.set(roomKey, room);
 
-      console.log(`🎮 ${playerName} a rejoint ${roomKey} (${room.players.length}/2 joueurs)`);
+      console.log(`🎮 ${playerName} a rejoint ${roomKey} (${room.players.length}/2 joueurs) - Symbole: ${player.symbol}`);
 
       // Notifier TOUS les joueurs
       io.to(roomKey).emit('player-joined', {
@@ -282,7 +282,7 @@ io.on('connection', (socket) => {
           currentPlayer: 'X',
           roomId: roomKey
         });
-        console.log(`🚀 Partie démarrée dans ${roomKey}`);
+        console.log(`🚀 Partie démarrée dans ${roomKey} - Joueur X: ${room.players[0].name}, Joueur O: ${room.players[1].name}`);
       }
 
       updateGlobalStats();
@@ -291,80 +291,115 @@ io.on('connection', (socket) => {
     }
   });
 
-  // MOUVEMENT DE JEU - GESTION RÉELLE MULTIJOUEUR
+  // MOUVEMENT DE JEU - CORRIGÉ POUR PREMIER JOUEUR
   socket.on('game-move', (data) => {
     const { game, move, roomId } = data;
     const room = rooms.get(roomId);
     
+    console.log(`🎯 Mouvement reçu de ${socket.id}: case ${move} dans ${roomId}`);
+    
     if (room && room.players.length === 2 && room.status === 'playing') {
       // Vérifier que c'est le tour du bon joueur
       const currentPlayer = room.players.find(p => p.id === socket.id);
-      if (!currentPlayer || currentPlayer.symbol !== room.currentPlayer) {
-        socket.emit('not-your-turn', { message: "Ce n'est pas votre tour !" });
+      
+      if (!currentPlayer) {
+        console.log('❌ Joueur non trouvé dans la salle');
+        socket.emit('not-your-turn', { message: "Joueur non trouvé dans la salle" });
+        return;
+      }
+
+      console.log(`🔍 Vérification tour: ${currentPlayer.name} (${currentPlayer.symbol}) vs currentPlayer: ${room.currentPlayer}`);
+
+      if (currentPlayer.symbol !== room.currentPlayer) {
+        console.log('⏰ Ce n\'est pas le tour de ce joueur');
+        socket.emit('not-your-turn', { 
+          message: `Ce n'est pas votre tour ! Tour du joueur ${room.currentPlayer}` 
+        });
         return;
       }
 
       // Vérifier que la case est libre
-      if (room.board[move] === '') {
-        room.board[move] = currentPlayer.symbol;
-        
-        // Vérifier s'il y a un gagnant
-        const winner = checkMorpionWinner(room.board);
-        const isBoardFull = room.board.every(cell => cell !== '');
-        
-        // Changer le joueur courant
-        room.currentPlayer = room.currentPlayer === 'X' ? 'O' : 'X';
-        rooms.set(roomId, room);
-        
-        // Transmettre le mouvement à TOUS les joueurs
-        io.to(roomId).emit('game-state-update', {
-          board: room.board,
-          currentPlayer: room.currentPlayer,
-          move: move,
-          symbol: currentPlayer.symbol,
-          playerName: currentPlayer.name,
-          winner: winner,
-          gameOver: winner || isBoardFull,
-          room: room
-        });
+      if (room.board[move] !== '') {
+        console.log('❌ Case déjà occupée');
+        socket.emit('invalid-move', { message: "Case déjà occupée" });
+        return;
+      }
 
-        console.log(`🎯 Mouvement ${move} par ${currentPlayer.name} dans ${roomId}`);
+      console.log(`✅ Mouvement valide: ${currentPlayer.name} (${currentPlayer.symbol}) joue ${move}`);
 
-        // Mettre à jour les stats du gagnant
-        if (winner) {
-          const winningPlayer = room.players.find(p => p.symbol === winner);
-          if (winningPlayer && users.has(winningPlayer.name)) {
-            const user = users.get(winningPlayer.name);
-            user.stats.wins++;
-            user.stats.totalScore += 10;
-            user.stats.totalGames++;
-            users.set(winningPlayer.name, user);
-            updateLeaderboard();
-            console.log(`🏆 ${winningPlayer.name} a gagné dans ${roomId}`);
-          }
-        }
+      // Mettre à jour le plateau
+      room.board[move] = currentPlayer.symbol;
+      
+      // Vérifier s'il y a un gagnant
+      const winner = checkMorpionWinner(room.board);
+      const isBoardFull = room.board.every(cell => cell !== '');
+      
+      // Changer le joueur courant
+      room.currentPlayer = room.currentPlayer === 'X' ? 'O' : 'X';
+      rooms.set(roomId, room);
+      
+      console.log(`🔄 Nouveau tour: ${room.currentPlayer}`);
 
-        // Si partie terminée, réinitialiser après un délai
-        if (winner || isBoardFull) {
-          room.status = 'finished';
-          setTimeout(() => {
-            if (rooms.has(roomId)) {
-              const endedRoom = rooms.get(roomId);
-              endedRoom.board = Array(9).fill('');
-              endedRoom.status = 'playing';
-              endedRoom.currentPlayer = 'X';
-              rooms.set(roomId, endedRoom);
-              
-              io.to(roomId).emit('game-reset', {
-                message: 'Nouvelle partie !',
-                board: endedRoom.board,
-                currentPlayer: endedRoom.currentPlayer
-              });
-              console.log(`🔄 Nouvelle partie dans ${roomId}`);
-            }
-          }, 3000);
+      // Transmettre le mouvement à TOUS les joueurs
+      io.to(roomId).emit('game-state-update', {
+        board: room.board,
+        currentPlayer: room.currentPlayer,
+        move: move,
+        symbol: currentPlayer.symbol,
+        playerName: currentPlayer.name,
+        winner: winner,
+        gameOver: winner || isBoardFull,
+        room: room
+      });
+
+      console.log(`📢 Mouvement diffusé à tous les joueurs de ${roomId}`);
+
+      // Mettre à jour les stats du gagnant
+      if (winner) {
+        const winningPlayer = room.players.find(p => p.symbol === winner);
+        if (winningPlayer && users.has(winningPlayer.name)) {
+          const user = users.get(winningPlayer.name);
+          user.stats.wins++;
+          user.stats.totalScore += 10;
+          user.stats.totalGames++;
+          users.set(winningPlayer.name, user);
+          updateLeaderboard();
+          console.log(`🏆 ${winningPlayer.name} a gagné dans ${roomId}`);
         }
       }
+
+      // Si partie terminée, réinitialiser après un délai
+      if (winner || isBoardFull) {
+        room.status = 'finished';
+        setTimeout(() => {
+          if (rooms.has(roomId)) {
+            const endedRoom = rooms.get(roomId);
+            endedRoom.board = Array(9).fill('');
+            endedRoom.status = 'playing';
+            endedRoom.currentPlayer = 'X';
+            rooms.set(roomId, endedRoom);
+            
+            io.to(roomId).emit('game-reset', {
+              message: 'Nouvelle partie !',
+              board: endedRoom.board,
+              currentPlayer: endedRoom.currentPlayer
+            });
+            console.log(`🔄 Nouvelle partie dans ${roomId}`);
+          }
+        }, 3000);
+      }
+    } else {
+      console.log(`❌ Conditions non remplies:`, {
+        roomExists: !!room,
+        players: room?.players.length,
+        status: room?.status
+      });
+      socket.emit('invalid-game-state', { 
+        message: 'Partie non prête', 
+        roomExists: !!room,
+        players: room?.players.length,
+        status: room?.status 
+      });
     }
   });
 
@@ -519,5 +554,5 @@ const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => {
   console.log(`🎮 GameHub Server démarré sur le port ${PORT}`);
   console.log(`📍 URL: http://localhost:${PORT}`);
-  console.log(`🎯 MULTIJOUEUR RÉEL ACTIVÉ - Les joueurs jouent VRAIMENT ensemble!`);
+  console.log(`🎯 VRAI MULTIJOUEUR FONCTIONNEL - Les joueurs jouent VRAIMENT ensemble!`);
 });
