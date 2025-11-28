@@ -569,8 +569,20 @@ class RealGameServer {
       this.handlePlayerJoined(data);
     });
 
+    this.socket.on('game-start', (data) => {
+      this.handleGameStart(data);
+    });
+
     this.socket.on('opponent-move', (data) => {
       this.handleOpponentMove(data);
+    });
+
+    this.socket.on('game-reset', (data) => {
+      this.handleGameReset(data);
+    });
+
+    this.socket.on('player-left', (data) => {
+      this.handlePlayerLeft(data);
     });
 
     this.socket.on('game-state', (data) => {
@@ -587,6 +599,10 @@ class RealGameServer {
 
     this.socket.on('global-stats-update', (data) => {
       this.handleGlobalStatsUpdate(data);
+    });
+
+    this.socket.on('rooms-list', (data) => {
+      this.handleRoomsList(data);
     });
   }
 
@@ -690,12 +706,46 @@ class RealGameServer {
     console.log('Joueur rejoint:', data);
     if (window.morpionGame && window.morpionGame.mode === 'online') {
       document.getElementById('player-count').textContent = data.room.players.length;
+      
+      // Mettre à jour le statut
+      const user = window.auth.getCurrentUser();
+      const ourPlayer = data.room.players.find(p => p.name === user.username);
+      if (ourPlayer) {
+        window.morpionGame.playerSymbol = ourPlayer.symbol;
+      }
+      
+      if (data.room.players.length === 2) {
+        window.store.showToast('Partie complète! Prêt à jouer', 'success');
+      }
+    }
+  }
+
+  handleGameStart(data) {
+    console.log('Début de partie:', data);
+    if (window.morpionGame && window.morpionGame.mode === 'online') {
+      window.morpionGame.handleGameStart(data);
     }
   }
 
   handleOpponentMove(data) {
+    console.log('Mouvement adversaire:', data);
     if (window.morpionGame && window.morpionGame.mode === 'online') {
-      window.morpionGame.handleOpponentMove(data.move);
+      window.morpionGame.handleOpponentMove(data);
+    }
+  }
+
+  handleGameReset(data) {
+    console.log('Réinitialisation jeu:', data);
+    if (window.morpionGame && window.morpionGame.mode === 'online') {
+      window.morpionGame.handleGameReset(data);
+    }
+  }
+
+  handlePlayerLeft(data) {
+    console.log('Joueur parti:', data);
+    if (window.morpionGame && window.morpionGame.mode === 'online') {
+      window.store.showToast(data.message, 'warning');
+      document.getElementById('player-count').textContent = data.players.length;
     }
   }
 
@@ -724,28 +774,24 @@ class RealGameServer {
     this.updateOnlineDisplays(data);
   }
 
-  // Dans la classe RealGameServer, remplacez la méthode updateOnlineDisplays :
-updateOnlineDisplays(stats) {
-  // Mettre à jour les compteurs avec données réelles + simulées
-  const totalMorpion = stats.games.morpion * 2 + (stats.simulatedPlayers?.morpion || 0);
-  const totalMemory = stats.games.memory * 2 + (stats.simulatedPlayers?.memory || 0);
-  const totalSnake = stats.games.snake * 2 + (stats.simulatedPlayers?.snake || 0);
-  
-  document.getElementById('morpion-players').textContent = totalMorpion;
-  document.getElementById('memory-players').textContent = totalMemory;
-  document.getElementById('snake-players').textContent = totalSnake;
-  
-  document.getElementById('morpion-online').textContent = stats.games.morpion + Math.floor((stats.simulatedPlayers?.morpion || 0) / 4);
-  document.getElementById('memory-online').textContent = stats.games.memory + Math.floor((stats.simulatedPlayers?.memory || 0) / 3);
-  document.getElementById('snake-online').textContent = stats.games.snake + Math.floor((stats.simulatedPlayers?.snake || 0) / 5);
-}
-
-// Ajoutez cette méthode pour gérer le début de partie
-handleGameStart(data) {
-  if (window.morpionGame && window.morpionGame.mode === 'online') {
-    window.morpionGame.handleGameStart(data);
+  handleRoomsList(data) {
+    console.log('Liste des salles:', data);
   }
-}
+
+  updateOnlineDisplays(stats) {
+    // Mettre à jour les compteurs avec données réelles + simulées
+    const totalMorpion = stats.games.morpion * 2 + (stats.simulatedPlayers?.morpion || 0);
+    const totalMemory = stats.games.memory * 2 + (stats.simulatedPlayers?.memory || 0);
+    const totalSnake = stats.games.snake * 2 + (stats.simulatedPlayers?.snake || 0);
+    
+    document.getElementById('morpion-players').textContent = totalMorpion;
+    document.getElementById('memory-players').textContent = totalMemory;
+    document.getElementById('snake-players').textContent = totalSnake;
+    
+    document.getElementById('morpion-online').textContent = stats.games.morpion + Math.floor((stats.simulatedPlayers?.morpion || 0) / 4);
+    document.getElementById('memory-online').textContent = stats.games.memory + Math.floor((stats.simulatedPlayers?.memory || 0) / 3);
+    document.getElementById('snake-online').textContent = stats.games.snake + Math.floor((stats.simulatedPlayers?.snake || 0) / 5);
+  }
 
   // API pour les données
   async getLeaderboard(game = 'all') {
@@ -765,6 +811,16 @@ handleGameStart(data) {
     } catch (error) {
       console.error('Erreur chargement stats:', error);
       return { onlinePlayers: 0, activeRooms: 0, activeTournaments: 0, games: { morpion: 0, memory: 0, snake: 0 } };
+    }
+  }
+
+  async getRooms(game) {
+    try {
+      const response = await fetch(`/api/rooms/${game}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur chargement salles:', error);
+      return [];
     }
   }
 }
@@ -1307,6 +1363,7 @@ let morpionGame = {
   ai: null,
   score: 0,
   roomId: null,
+  playerSymbol: 'X',
 
   init() {
     this.board = Array(9).fill('');
@@ -1352,25 +1409,68 @@ let morpionGame = {
     return true;
   },
 
-  handleOpponentMove(move) {
-    if (this.mode === 'online' && this.currentPlayer === 'O' && this.gameActive) {
-      this.board[move] = 'O';
+  handleOpponentMove(data) {
+    if (this.mode === 'online' && this.gameActive) {
+      this.board[data.move] = data.symbol;
       this.updateDisplay();
 
-      const winner = this.checkWinner();
+      const winner = data.winner;
+      const gameOver = data.gameOver;
+      
       if (winner) {
         this.handleGameEnd(winner);
-      } else if (this.isBoardFull()) {
+      } else if (gameOver) {
         this.handleGameEnd(null);
       } else {
-        this.switchPlayer();
+        this.currentPlayer = data.currentPlayer;
         this.updateStatus();
       }
     }
   },
 
+  handleGameStart(data) {
+    this.gameActive = true;
+    this.currentPlayer = 'X';
+    
+    // Mettre à jour l'affichage des joueurs
+    document.getElementById('player-count').textContent = data.players.length;
+    
+    // Trouver notre joueur
+    const user = window.auth.getCurrentUser();
+    const ourPlayer = data.players.find(p => p.name === user.username);
+    if (ourPlayer) {
+      this.playerSymbol = ourPlayer.symbol;
+    }
+    
+    this.updateStatus();
+    window.store.showToast('Partie commencée!', 'success');
+  },
+
+  handleGameReset(data) {
+    this.board = data.board;
+    this.currentPlayer = data.currentPlayer;
+    this.gameActive = true;
+    
+    this.updateDisplay();
+    this.updateStatus();
+    
+    window.store.showToast('Nouvelle partie!', 'info');
+  },
+
   checkWinner() {
-    return this.ai.checkWinner(this.board);
+    const lines = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+
+    for (const line of lines) {
+      const [a,b,c] = line;
+      if (this.board[a] && this.board[a] === this.board[b] && this.board[a] === this.board[c]) {
+        return this.board[a];
+      }
+    }
+    return null;
   },
 
   isBoardFull() {
@@ -1386,7 +1486,7 @@ let morpionGame = {
     
     if (winner) {
       this.highlightWinningCells(winner);
-      if (winner === 'X') {
+      if (winner === this.playerSymbol) {
         this.score += 10;
         window.store.updateUserStats({
           game: 'morpion',
@@ -1444,9 +1544,17 @@ let morpionGame = {
   },
 
   handleCellClick(position) {
-    if (this.mode === 'online' && this.currentPlayer === 'O') {
-      window.store.showToast("En attente de l'adversaire...", 'info');
-      return;
+    if (!this.gameActive) return;
+    
+    if (this.mode === 'online') {
+      // En ligne : vérifier que c'est notre tour
+      const user = window.auth.getCurrentUser();
+      const isOurTurn = (this.currentPlayer === this.playerSymbol);
+      
+      if (!isOurTurn) {
+        window.store.showToast("En attente de l'adversaire...", 'info');
+        return;
+      }
     }
 
     this.makeMove(position);
@@ -1457,13 +1565,17 @@ let morpionGame = {
     if (!statusElement) return;
 
     if (winner) {
-      statusElement.textContent = winner === 'X' ? 'Vous avez gagné ! 🎉' : 'L\'IA a gagné !';
+      const isOurWin = (winner === this.playerSymbol);
+      statusElement.textContent = isOurWin ? 'Vous avez gagné ! 🎉' : 'L\'adversaire a gagné !';
     } else if (winner === null && !this.gameActive) {
       statusElement.textContent = 'Match nul !';
     } else {
-      const playerText = this.currentPlayer === 'X' ? 'Votre tour' : 
-                        this.mode === 'online' ? 'Tour de l\'adversaire' : 'Tour de l\'IA';
-      statusElement.textContent = playerText;
+      if (this.mode === 'online') {
+        const isOurTurn = (this.currentPlayer === this.playerSymbol);
+        statusElement.textContent = isOurTurn ? 'Votre tour' : 'Tour de l\'adversaire';
+      } else {
+        statusElement.textContent = this.currentPlayer === 'X' ? 'Votre tour' : 'Tour de l\'IA';
+      }
     }
   },
 
@@ -1474,7 +1586,7 @@ let morpionGame = {
     }
   },
 
-  async setMode(mode) {
+  async setMode(mode, specificRoomId = null) {
     this.mode = mode;
     
     if (this.mode === 'online') {
@@ -1484,8 +1596,10 @@ let morpionGame = {
       const user = window.auth.getCurrentUser();
       if (user) {
         try {
-          this.roomId = await window.server.joinRoom('morpion', user.username);
+          // Utiliser l'ID de salle spécifique si fourni
+          this.roomId = await window.server.joinRoom('morpion', user.username, specificRoomId);
           window.chatSystem.joinRoom(this.roomId, user.username);
+          
         } catch (error) {
           window.store.showToast('Erreur de connexion: ' + error.message, 'error');
           this.mode = 'robot-easy';
@@ -2024,18 +2138,41 @@ function closeGames() {
   document.querySelectorAll('.game-container').forEach(g => g.classList.remove('active'));
 }
 
-function joinMultiplayerRoom(game) {
+// FONCTION AMÉLIORÉE : Rejoindre une salle multijoueur
+async function joinMultiplayerRoom(game) {
   if (!auth.isLoggedIn()) {
     store.showToast('Connectez-vous pour jouer en ligne', 'warning');
     openAuthModal();
     return;
   }
 
-  store.showToast(`Connexion à la salle ${game}...`, 'info');
-  openGame(game);
+  store.showToast(`Recherche de joueurs en ligne...`, 'info');
   
-  if (game === 'morpion') {
-    morpionGame.setMode('online');
+  try {
+    // Chercher d'abord une salle existante
+    const availableRooms = await server.getRooms(game);
+    
+    let roomId = null;
+    
+    if (availableRooms.length > 0) {
+      // Rejoindre une salle existante
+      roomId = availableRooms[0].id;
+      store.showToast(`Salle trouvée! Connexion...`, 'info');
+    } else {
+      // Créer une nouvelle salle avec un ID fixe
+      roomId = `${game}-lobby`;
+      store.showToast(`Création d'une nouvelle salle...`, 'info');
+    }
+    
+    openGame(game);
+    
+    if (game === 'morpion') {
+      // Passer l'ID de salle spécifique
+      await morpionGame.setMode('online', roomId);
+    }
+  } catch (error) {
+    console.error('Erreur recherche salle:', error);
+    store.showToast('Erreur de connexion au serveur', 'error');
   }
 }
 
