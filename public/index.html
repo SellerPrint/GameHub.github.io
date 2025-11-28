@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>GameHub - Plateforme 100% Réelle</title>
+<title>GameHub - VRAI Multijoueur</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bcryptjs/2.4.3/bcrypt.min.js"></script>
@@ -217,7 +217,7 @@ header{display:flex;justify-content:space-between;align-items:center;padding:20p
   <section id="home" class="section active">
     <div class="hero">
       <h1>Bienvenue sur GameHub</h1>
-      <p>Plateforme de jeux 100% réelle avec backend intégré, base de données et authentification !</p>
+      <p>Plateforme de jeux 100% réelle avec VRAI multijoueur en temps réel !</p>
       <button class="cta-button" id="start-btn"><i class="fas fa-play"></i> Commencer à jouer</button>
     </div>
     <div class="games-grid">
@@ -225,7 +225,7 @@ header{display:flex;justify-content:space-between;align-items:center;padding:20p
         <div class="game-image"><i class="fas fa-times"></i></div>
         <div class="game-content">
           <h3>Morpion</h3>
-          <p>Défiez l'IA ou jouez en ligne avec de vrais adversaires.</p>
+          <p>Jouez contre l'IA ou contre de VRAIS adversaires en ligne.</p>
           <div class="game-stats">
             <div><span class="online-dot"></span><span id="morpion-players">0</span> joueurs</div>
             <div><i class="fas fa-star"></i> 4.8</div>
@@ -261,7 +261,7 @@ header{display:flex;justify-content:space-between;align-items:center;padding:20p
   <section id="games" class="section">
     <h2 style="color:var(--light);text-align:center;margin-bottom:12px">Choisissez votre jeu</h2>
     <div class="games-grid">
-      <div class="game-card" data-game="morpion"><div class="game-image"><i class="fas fa-times"></i></div><div class="game-content"><h3>Morpion</h3><p>IA avancée et multijoueur.</p></div></div>
+      <div class="game-card" data-game="morpion"><div class="game-image"><i class="fas fa-times"></i></div><div class="game-content"><h3>Morpion</h3><p>IA avancée et VRAI multijoueur.</p></div></div>
       <div class="game-card" data-game="memory"><div class="game-image"><i class="fas fa-brain"></i></div><div class="game-content"><h3>Memory</h3><p>Parties chronométrées.</p></div></div>
       <div class="game-card" data-game="snake"><div class="game-image"><i class="fas fa-cog"></i></div><div class="game-content"><h3>Snake</h3><p>Compétition en temps réel.</p></div></div>
     </div>
@@ -291,7 +291,7 @@ header{display:flex;justify-content:space-between;align-items:center;padding:20p
         <div class="game-image" style="background:linear-gradient(135deg,#FF6584,#FF9E7D)"><i class="fas fa-users"></i></div>
         <div class="game-content">
           <h3>Salle Morpion</h3>
-          <p>Rejoignez une partie en ligne.</p>
+          <p>Jouez contre de VRAIS adversaires en ligne.</p>
           <div class="game-stats">
             <div><span class="online-dot"></span><span id="morpion-online">0</span> en ligne</div>
             <div><button class="cta-button join-room" data-game="morpion" style="padding:6px 10px;font-size:.9rem">Rejoindre</button></div>
@@ -365,14 +365,14 @@ header{display:flex;justify-content:space-between;align-items:center;padding:20p
     
     <div id="morpion-instructions" style="display:none;margin-bottom:12px">
       <h4>Comment jouer :</h4>
-      <p>Alignez trois symboles pour gagner. En ligne, vous jouez contre de vrais adversaires.</p>
+      <p>Alignez trois symboles pour gagner. En ligne, vous jouez contre de VRAIS adversaires.</p>
     </div>
     
     <div class="morpion-container">
       <div id="morpion-status" style="font-size:1.1rem;text-align:center;margin:10px 0">Tour du joueur X</div>
       <div id="morpion-board" class="board"></div>
       <div id="online-players" style="margin-top:12px;text-align:center;display:none">
-        <div><span class="online-dot"></span> <span id="player-count">1</span> joueur(s) en ligne</div>
+        <div><span class="online-dot"></span> <span id="player-count">1</span>/2 joueur(s) en ligne</div>
       </div>
       <div id="morpion-chat" class="chat-container" style="display:none">
         <div class="chat-messages" id="morpion-chat-messages"></div>
@@ -522,7 +522,7 @@ header{display:flex;justify-content:space-between;align-items:center;padding:20p
 
 <script>
 // =========================
-// SERVEUR BACKEND 100% RÉEL - CLIENT SOCKET.IO
+// SERVEUR BACKEND - VRAI MULTIJOUEUR
 // =========================
 class RealGameServer {
   constructor() {
@@ -541,7 +541,7 @@ class RealGameServer {
 
         this.socket.on('connect', () => {
           this.connected = true;
-          console.log('🔗 Connecté au serveur GameHub');
+          console.log('🔗 Connecté au serveur GameHub - VRAI MULTIJOUEUR ACTIF');
           this.setupSocketEvents();
           resolve();
         });
@@ -564,46 +564,125 @@ class RealGameServer {
   }
 
   setupSocketEvents() {
-    // Événements de jeu
+    // Événements de jeu RÉEL multijoueur
     this.socket.on('player-joined', (data) => {
+      console.log('🎮 Joueur rejoint:', data);
       this.handlePlayerJoined(data);
     });
 
     this.socket.on('game-start', (data) => {
+      console.log('🚀 Début de partie:', data);
       this.handleGameStart(data);
     });
 
-    this.socket.on('opponent-move', (data) => {
-      this.handleOpponentMove(data);
+    this.socket.on('game-state-update', (data) => {
+      console.log('🔄 Mise à jour état jeu:', data);
+      this.handleGameStateUpdate(data);
     });
 
     this.socket.on('game-reset', (data) => {
+      console.log('🔄 Réinitialisation jeu:', data);
       this.handleGameReset(data);
     });
 
-    this.socket.on('player-left', (data) => {
-      this.handlePlayerLeft(data);
+    this.socket.on('not-your-turn', (data) => {
+      console.log('⏰ Pas votre tour:', data);
+      window.store.showToast(data.message, 'warning');
     });
 
-    this.socket.on('game-state', (data) => {
-      this.handleGameState(data);
+    this.socket.on('player-left', (data) => {
+      console.log('👋 Joueur parti:', data);
+      this.handlePlayerLeft(data);
     });
 
     this.socket.on('chat-message', (data) => {
       this.handleChatMessage(data);
     });
 
-    this.socket.on('tournament-update', (data) => {
-      this.handleTournamentUpdate(data);
-    });
-
     this.socket.on('global-stats-update', (data) => {
       this.handleGlobalStatsUpdate(data);
     });
+  }
 
-    this.socket.on('rooms-list', (data) => {
-      this.handleRoomsList(data);
-    });
+  // Gestion des événements MULTIJOUEUR
+  handlePlayerJoined(data) {
+    if (window.morpionGame && window.morpionGame.mode === 'online') {
+      document.getElementById('player-count').textContent = data.room.players.length;
+      
+      const user = window.auth.getCurrentUser();
+      const ourPlayer = data.room.players.find(p => p.name === user.username);
+      if (ourPlayer) {
+        window.morpionGame.playerSymbol = ourPlayer.symbol;
+        window.morpionGame.currentPlayer = data.room.currentPlayer;
+      }
+      
+      if (data.room.players.length === 2) {
+        window.store.showToast('Partie complète! Prêt à jouer contre un VRAI adversaire!', 'success');
+      }
+    }
+  }
+
+  handleGameStart(data) {
+    if (window.morpionGame && window.morpionGame.mode === 'online') {
+      window.morpionGame.handleGameStart(data);
+    }
+  }
+
+  handleGameStateUpdate(data) {
+    console.log('🎯 Mise à jour état reçue:', data);
+    if (window.morpionGame && window.morpionGame.mode === 'online') {
+      window.morpionGame.handleGameStateUpdate(data);
+    }
+  }
+
+  handleGameReset(data) {
+    if (window.morpionGame && window.morpionGame.mode === 'online') {
+      window.morpionGame.handleGameReset(data);
+    }
+  }
+
+  handlePlayerLeft(data) {
+    if (window.morpionGame && window.morpionGame.mode === 'online') {
+      window.store.showToast(data.message, 'warning');
+      document.getElementById('player-count').textContent = data.players.length;
+      
+      // Si l'adversaire quitte, revenir au menu
+      if (data.players.length === 1) {
+        setTimeout(() => {
+          window.store.showToast('L\'adversaire a quitté. Retour au menu.', 'info');
+          closeGames();
+        }, 2000);
+      }
+    }
+  }
+
+  handleChatMessage(data) {
+    if (window.chatSystem && data.roomId) {
+      window.chatSystem.addMessage(data.roomId, {
+        type: 'player',
+        playerName: data.playerName,
+        message: data.message,
+        timestamp: new Date()
+      });
+    }
+  }
+
+  handleGlobalStatsUpdate(data) {
+    this.updateOnlineDisplays(data);
+  }
+
+  updateOnlineDisplays(stats) {
+    const totalMorpion = stats.games.morpion * 2 + (stats.simulatedPlayers?.morpion || 0);
+    const totalMemory = stats.games.memory * 2 + (stats.simulatedPlayers?.memory || 0);
+    const totalSnake = stats.games.snake * 2 + (stats.simulatedPlayers?.snake || 0);
+    
+    document.getElementById('morpion-players').textContent = totalMorpion;
+    document.getElementById('memory-players').textContent = totalMemory;
+    document.getElementById('snake-players').textContent = totalSnake;
+    
+    document.getElementById('morpion-online').textContent = stats.games.morpion + Math.floor((stats.simulatedPlayers?.morpion || 0) / 4);
+    document.getElementById('memory-online').textContent = stats.games.memory + Math.floor((stats.simulatedPlayers?.memory || 0) / 3);
+    document.getElementById('snake-online').textContent = stats.games.snake + Math.floor((stats.simulatedPlayers?.snake || 0) / 5);
   }
 
   // Authentification via API REST
@@ -701,98 +780,6 @@ class RealGameServer {
     this.socket.emit('join-tournament', { tournamentId, playerName });
   }
 
-  // Gestion des événements
-  handlePlayerJoined(data) {
-    console.log('Joueur rejoint:', data);
-    if (window.morpionGame && window.morpionGame.mode === 'online') {
-      document.getElementById('player-count').textContent = data.room.players.length;
-      
-      // Mettre à jour le statut
-      const user = window.auth.getCurrentUser();
-      const ourPlayer = data.room.players.find(p => p.name === user.username);
-      if (ourPlayer) {
-        window.morpionGame.playerSymbol = ourPlayer.symbol;
-      }
-      
-      if (data.room.players.length === 2) {
-        window.store.showToast('Partie complète! Prêt à jouer', 'success');
-      }
-    }
-  }
-
-  handleGameStart(data) {
-    console.log('Début de partie:', data);
-    if (window.morpionGame && window.morpionGame.mode === 'online') {
-      window.morpionGame.handleGameStart(data);
-    }
-  }
-
-  handleOpponentMove(data) {
-    console.log('Mouvement adversaire:', data);
-    if (window.morpionGame && window.morpionGame.mode === 'online') {
-      window.morpionGame.handleOpponentMove(data);
-    }
-  }
-
-  handleGameReset(data) {
-    console.log('Réinitialisation jeu:', data);
-    if (window.morpionGame && window.morpionGame.mode === 'online') {
-      window.morpionGame.handleGameReset(data);
-    }
-  }
-
-  handlePlayerLeft(data) {
-    console.log('Joueur parti:', data);
-    if (window.morpionGame && window.morpionGame.mode === 'online') {
-      window.store.showToast(data.message, 'warning');
-      document.getElementById('player-count').textContent = data.players.length;
-    }
-  }
-
-  handleGameState(data) {
-    console.log('État du jeu:', data);
-  }
-
-  handleChatMessage(data) {
-    if (window.chatSystem && data.roomId) {
-      window.chatSystem.addMessage(data.roomId, {
-        type: 'player',
-        playerName: data.playerName,
-        message: data.message,
-        timestamp: new Date()
-      });
-    }
-  }
-
-  handleTournamentUpdate(data) {
-    if (window.tournamentSystem) {
-      window.tournamentSystem.updateTournament(data);
-    }
-  }
-
-  handleGlobalStatsUpdate(data) {
-    this.updateOnlineDisplays(data);
-  }
-
-  handleRoomsList(data) {
-    console.log('Liste des salles:', data);
-  }
-
-  updateOnlineDisplays(stats) {
-    // Mettre à jour les compteurs avec données réelles + simulées
-    const totalMorpion = stats.games.morpion * 2 + (stats.simulatedPlayers?.morpion || 0);
-    const totalMemory = stats.games.memory * 2 + (stats.simulatedPlayers?.memory || 0);
-    const totalSnake = stats.games.snake * 2 + (stats.simulatedPlayers?.snake || 0);
-    
-    document.getElementById('morpion-players').textContent = totalMorpion;
-    document.getElementById('memory-players').textContent = totalMemory;
-    document.getElementById('snake-players').textContent = totalSnake;
-    
-    document.getElementById('morpion-online').textContent = stats.games.morpion + Math.floor((stats.simulatedPlayers?.morpion || 0) / 4);
-    document.getElementById('memory-online').textContent = stats.games.memory + Math.floor((stats.simulatedPlayers?.memory || 0) / 3);
-    document.getElementById('snake-online').textContent = stats.games.snake + Math.floor((stats.simulatedPlayers?.snake || 0) / 5);
-  }
-
   // API pour les données
   async getLeaderboard(game = 'all') {
     try {
@@ -826,7 +813,7 @@ class RealGameServer {
 }
 
 // =========================
-// SYSTÈME D'AUTHENTIFICATION RÉEL
+// SYSTÈME D'AUTHENTIFICATION
 // =========================
 class AuthSystem {
   constructor() {
@@ -905,7 +892,7 @@ class AuthSystem {
 }
 
 // =========================
-// SYSTÈME DE STOCKAGE RÉEL
+// SYSTÈME DE STOCKAGE
 // =========================
 class RealGameStore {
   constructor() {
@@ -973,7 +960,6 @@ class RealGameStore {
   async updateUserStats(gameResult) {
     if (!window.auth.isLoggedIn()) return;
 
-    // Mettre à jour les stats locales
     this.state.gameStats[gameResult.game].wins += gameResult.won ? 1 : 0;
     this.state.gameStats[gameResult.game].losses += gameResult.won ? 0 : 1;
     this.state.gameStats[gameResult.game].score += gameResult.score || 0;
@@ -985,20 +971,17 @@ class RealGameStore {
   checkAchievements(gameResult) {
     let unlockedAny = false;
 
-    // Première victoire
     if (gameResult.won && this.state.gameStats[gameResult.game].wins === 1) {
       this.unlockAchievement('first_win');
       unlockedAny = true;
     }
 
-    // Niveau 5
     const totalScore = Object.values(this.state.gameStats).reduce((acc, stats) => acc + stats.score, 0);
     if (totalScore >= 500) {
       this.unlockAchievement('level_5');
       unlockedAny = true;
     }
 
-    // Joueur en ligne
     if (gameResult.online) {
       this.unlockAchievement('online_player');
       unlockedAny = true;
@@ -1031,7 +1014,7 @@ class RealGameStore {
 }
 
 // =========================
-// IA AVANCÉE POUR MORPION (Minimax)
+// IA AVANCÉE POUR MORPION
 // =========================
 class AdvancedMorpionAI {
   constructor(difficulty = 'medium') {
@@ -1175,7 +1158,7 @@ class AdvancedMorpionAI {
 }
 
 // =========================
-// SYSTÈME DE TOURNOIS RÉEL
+// SYSTÈME DE TOURNOIS
 // =========================
 class TournamentSystem {
   constructor(server) {
@@ -1245,7 +1228,6 @@ class TournamentSystem {
       container.appendChild(card);
     });
 
-    // Ajouter les écouteurs d'événements
     document.querySelectorAll('.join-tournament').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const tournamentId = e.target.dataset.id;
@@ -1279,7 +1261,7 @@ class TournamentSystem {
 }
 
 // =========================
-// SYSTÈME DE CHAT RÉEL
+// SYSTÈME DE CHAT
 // =========================
 class ChatSystem {
   constructor() {
@@ -1315,7 +1297,6 @@ class ChatSystem {
     const roomMessages = this.messages.get(roomId) || [];
     roomMessages.push(messageData);
     
-    // Garder seulement les 50 derniers messages
     if (roomMessages.length > 50) {
       roomMessages.splice(0, roomMessages.length - 50);
     }
@@ -1351,10 +1332,10 @@ class ChatSystem {
 }
 
 // =========================
-// JEUX AVEC FONCTIONNALITÉS RÉELLES
+// JEUX AVEC VRAI MULTIJOUEUR
 // =========================
 
-// Morpion avec IA avancée et multijoueur
+// Morpion avec VRAI multijoueur
 let morpionGame = {
   board: [],
   currentPlayer: 'X',
@@ -1378,6 +1359,13 @@ let morpionGame = {
   makeMove(position) {
     if (!this.gameActive || this.board[position] !== '') return false;
 
+    // En mode en ligne, envoyer le mouvement au serveur
+    if (this.mode === 'online' && this.roomId) {
+      window.server.sendGameMove('morpion', position, this.roomId);
+      return true;
+    }
+
+    // Mode solo contre IA
     this.board[position] = this.currentPlayer;
     this.updateDisplay();
 
@@ -1395,42 +1383,36 @@ let morpionGame = {
     this.switchPlayer();
     this.updateStatus();
 
-    // Tour de l'IA ou envoi au serveur
+    // Tour de l'IA
     if (this.mode.startsWith('robot') && this.currentPlayer === 'O') {
       setTimeout(() => {
         const aiMove = this.ai.getMove([...this.board], 'O');
         this.makeMove(aiMove);
       }, 500);
-    } else if (this.mode === 'online' && this.roomId) {
-      // Envoyer le mouvement au serveur
-      window.server.sendGameMove('morpion', position, this.roomId);
     }
 
     return true;
   },
 
-  handleOpponentMove(data) {
-    if (this.mode === 'online' && this.gameActive) {
-      this.board[data.move] = data.symbol;
-      this.updateDisplay();
+  handleGameStateUpdate(data) {
+    console.log('🔄 Mise à jour état jeu reçue:', data);
+    
+    // Synchroniser avec l'état du serveur
+    this.board = data.board;
+    this.currentPlayer = data.currentPlayer;
+    this.gameActive = !data.gameOver;
+    
+    this.updateDisplay();
+    this.updateStatus(data.winner);
 
-      const winner = data.winner;
-      const gameOver = data.gameOver;
-      
-      if (winner) {
-        this.handleGameEnd(winner);
-      } else if (gameOver) {
-        this.handleGameEnd(null);
-      } else {
-        this.currentPlayer = data.currentPlayer;
-        this.updateStatus();
-      }
+    if (data.gameOver) {
+      this.handleGameEnd(data.winner);
     }
   },
 
   handleGameStart(data) {
     this.gameActive = true;
-    this.currentPlayer = 'X';
+    this.currentPlayer = data.currentPlayer;
     
     // Mettre à jour l'affichage des joueurs
     document.getElementById('player-count').textContent = data.players.length;
@@ -1440,10 +1422,11 @@ let morpionGame = {
     const ourPlayer = data.players.find(p => p.name === user.username);
     if (ourPlayer) {
       this.playerSymbol = ourPlayer.symbol;
+      console.log(`🎯 Je suis le joueur: ${this.playerSymbol}`);
     }
     
     this.updateStatus();
-    window.store.showToast('Partie commencée!', 'success');
+    window.store.showToast('Partie commencée contre un VRAI adversaire! 🎮', 'success');
   },
 
   handleGameReset(data) {
@@ -1454,7 +1437,7 @@ let morpionGame = {
     this.updateDisplay();
     this.updateStatus();
     
-    window.store.showToast('Nouvelle partie!', 'info');
+    window.store.showToast('Nouvelle partie! Prêt à jouer!', 'info');
   },
 
   checkWinner() {
@@ -1548,11 +1531,10 @@ let morpionGame = {
     
     if (this.mode === 'online') {
       // En ligne : vérifier que c'est notre tour
-      const user = window.auth.getCurrentUser();
       const isOurTurn = (this.currentPlayer === this.playerSymbol);
       
       if (!isOurTurn) {
-        window.store.showToast("En attente de l'adversaire...", 'info');
+        window.store.showToast("⏳ En attente de l'adversaire...", 'info');
         return;
       }
     }
@@ -1566,15 +1548,19 @@ let morpionGame = {
 
     if (winner) {
       const isOurWin = (winner === this.playerSymbol);
-      statusElement.textContent = isOurWin ? 'Vous avez gagné ! 🎉' : 'L\'adversaire a gagné !';
+      statusElement.textContent = isOurWin ? '🎉 Vous avez gagné !' : '💥 L\'adversaire a gagné !';
+      statusElement.style.color = isOurWin ? 'var(--success)' : 'var(--danger)';
     } else if (winner === null && !this.gameActive) {
-      statusElement.textContent = 'Match nul !';
+      statusElement.textContent = '🤝 Match nul !';
+      statusElement.style.color = 'var(--warning)';
     } else {
       if (this.mode === 'online') {
         const isOurTurn = (this.currentPlayer === this.playerSymbol);
-        statusElement.textContent = isOurTurn ? 'Votre tour' : 'Tour de l\'adversaire';
+        statusElement.textContent = isOurTurn ? '✅ Votre tour' : '⏳ Tour de l\'adversaire';
+        statusElement.style.color = isOurTurn ? 'var(--success)' : 'var(--warning)';
       } else {
         statusElement.textContent = this.currentPlayer === 'X' ? 'Votre tour' : 'Tour de l\'IA';
+        statusElement.style.color = 'var(--primary)';
       }
     }
   },
@@ -1618,7 +1604,7 @@ let morpionGame = {
   }
 };
 
-// Memory Game
+// Memory Game (reste identique)
 let memoryGame = {
   cards: [],
   flippedCards: [],
@@ -1677,7 +1663,6 @@ let memoryGame = {
     const [index1, index2] = this.flippedCards;
     
     if (this.cards[index1] === this.cards[index2]) {
-      // Match trouvé
       this.flippedCards.forEach(index => {
         const card = document.querySelectorAll('.memory-card')[index];
         card.classList.add('matched');
@@ -1690,7 +1675,6 @@ let memoryGame = {
         this.handleGameEnd(true);
       }
     } else {
-      // Pas de match
       this.flippedCards.forEach(index => {
         const card = document.querySelectorAll('.memory-card')[index];
         card.classList.remove('flipped');
@@ -1746,7 +1730,7 @@ let memoryGame = {
   }
 };
 
-// Snake Game
+// Snake Game (reste identique)
 let snakeGame = {
   snake: [],
   food: {},
@@ -1785,7 +1769,6 @@ let snakeGame = {
     head.x += this.direction.x;
     head.y += this.direction.y;
 
-    // Vérifier les collisions
     if (head.x < 0 || head.x >= this.gridSize || head.y < 0 || head.y >= this.gridSize ||
         this.snake.some(segment => segment.x === head.x && segment.y === head.y)) {
       this.handleGameEnd();
@@ -1794,7 +1777,6 @@ let snakeGame = {
 
     this.snake.unshift(head);
 
-    // Vérifier si le serpent mange la nourriture
     if (head.x === this.food.x && head.y === this.food.y) {
       this.score++;
       this.generateFood();
@@ -1811,23 +1793,19 @@ let snakeGame = {
     const ctx = canvas.getContext('2d');
     const cellSize = canvas.width / this.gridSize;
 
-    // Effacer le canvas
     ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--light') || '#fff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Dessiner le serpent
     ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--success') || '#32c766';
     this.snake.forEach(segment => {
       ctx.fillRect(segment.x * cellSize + 1, segment.y * cellSize + 1, cellSize - 2, cellSize - 2);
     });
 
-    // Dessiner la nourriture
     ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--danger') || '#ff5252';
     ctx.fillRect(this.food.x * cellSize + 1, this.food.y * cellSize + 1, cellSize - 2, cellSize - 2);
   },
 
   changeDirection(newDirection) {
-    // Empêcher le mouvement inverse
     if (this.direction.x === -newDirection.x && this.direction.y === -newDirection.y) return;
     this.direction = newDirection;
   },
@@ -1873,14 +1851,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function initializeApp() {
   try {
-    // Initialiser les systèmes
     server = new RealGameServer();
     auth = new AuthSystem();
     store = new RealGameStore();
     tournamentSystem = new TournamentSystem(server);
     chatSystem = new ChatSystem();
 
-    // Exposer globalement pour le débogage
     window.server = server;
     window.auth = auth;
     window.store = store;
@@ -1890,19 +1866,12 @@ async function initializeApp() {
     window.memoryGame = memoryGame;
     window.snakeGame = snakeGame;
 
-    // Appliquer les paramètres
     applySettings();
-
-    // Configurer les écouteurs d'événements
     setupEventListeners();
-
-    // Charger les données initiales
     await loadInitialData();
-
-    // Démarrer les mises à jour en temps réel
     startRealTimeUpdates();
 
-    console.log('🎮 GameHub 100% Réel initialisé avec succès!');
+    console.log('🎮 GameHub VRAI MULTIJOUEUR initialisé avec succès!');
 
   } catch (error) {
     console.error('Erreur d initialisation:', error);
@@ -1911,41 +1880,33 @@ async function initializeApp() {
 }
 
 function applySettings() {
-  // Thème
   document.body.classList.toggle('dark-mode', store.state.settings.dark);
   document.getElementById('theme-toggle').innerHTML = store.state.settings.dark ? 
     '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
 
-  // Son
   document.getElementById('sound-toggle').innerHTML = store.state.settings.sound ? 
     '<i class="fas fa-volume-up"></i>' : '<i class="fas fa-volume-mute"></i>';
 
-  // Mettre à jour l'affichage de l'utilisateur
   auth.updateUI();
 }
 
 function setupEventListeners() {
-  // Navigation
   document.querySelectorAll('.nav-tab').forEach(tab => {
     tab.addEventListener('click', () => switchTab(tab.dataset.tab));
   });
 
-  // Contrôles d'en-tête
   document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
   document.getElementById('sound-toggle').addEventListener('click', toggleSound);
   document.getElementById('auth-btn').addEventListener('click', handleAuthButton);
   document.getElementById('logo').addEventListener('click', () => switchTab('home'));
 
-  // Boutons d'action
   document.getElementById('start-btn').addEventListener('click', () => switchTab('games'));
   document.getElementById('create-tournament').addEventListener('click', openTournamentModal);
 
-  // Cartes de jeu
   document.querySelectorAll('.game-card[data-game]').forEach(card => {
     card.addEventListener('click', () => openGame(card.dataset.game));
   });
 
-  // Boutons de salle multijoueur
   document.querySelectorAll('.join-room').forEach(btn => {
     btn.addEventListener('click', function() {
       const game = this.dataset.game;
@@ -1953,7 +1914,6 @@ function setupEventListeners() {
     });
   });
 
-  // Jeu - Morpion
   document.getElementById('morpion-back').addEventListener('click', closeGames);
   document.getElementById('morpion-reset').addEventListener('click', () => morpionGame.init());
   document.getElementById('morpion-info').addEventListener('click', () => toggleInstructions('morpion'));
@@ -1969,17 +1929,14 @@ function setupEventListeners() {
     if (e.key === 'Enter') sendChatMessage();
   });
 
-  // Jeu - Memory
   document.getElementById('memory-back').addEventListener('click', closeGames);
   document.getElementById('memory-reset').addEventListener('click', () => memoryGame.init());
   document.getElementById('memory-info').addEventListener('click', () => toggleInstructions('memory'));
 
-  // Jeu - Snake
   document.getElementById('snake-back').addEventListener('click', closeGames);
   document.getElementById('snake-reset').addEventListener('click', () => snakeGame.init());
   document.getElementById('snake-info').addEventListener('click', () => toggleInstructions('snake'));
   
-  // Contrôles Snake
   document.querySelectorAll('.snake-controls button[data-dir]').forEach(btn => {
     btn.addEventListener('click', () => {
       const [x, y] = btn.dataset.dir.split(',').map(Number);
@@ -1987,7 +1944,6 @@ function setupEventListeners() {
     });
   });
 
-  // Contrôles clavier Snake
   document.addEventListener('keydown', (e) => {
     if (!document.getElementById('snake').classList.contains('active')) return;
     
@@ -1999,22 +1955,18 @@ function setupEventListeners() {
     }
   });
 
-  // Modals
   document.querySelectorAll('.modal-close').forEach(btn => {
     btn.addEventListener('click', () => {
       btn.closest('.modal').classList.remove('active');
     });
   });
 
-  // Authentification
   document.getElementById('auth-submit').addEventListener('click', handleAuthSubmit);
   document.getElementById('auth-switch').addEventListener('click', toggleAuthMode);
   document.getElementById('logout-btn').addEventListener('click', () => auth.logout());
 
-  // Tournois
   document.getElementById('create-tournament-btn').addEventListener('click', createTournament);
 
-  // Filtres classement
   document.querySelectorAll('.filter-btn').forEach(btn => {
     btn.addEventListener('click', function() {
       document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -2023,7 +1975,6 @@ function setupEventListeners() {
     });
   });
 
-  // Gestes tactiles pour Snake
   setupTouchControls();
 }
 
@@ -2067,7 +2018,6 @@ async function loadInitialData() {
   loadAchievements();
   tournamentSystem.updateTournamentsDisplay();
   
-  // Charger les stats en ligne
   try {
     const stats = await server.getStats();
     server.updateOnlineDisplays(stats);
@@ -2077,7 +2027,6 @@ async function loadInitialData() {
 }
 
 function startRealTimeUpdates() {
-  // Mettre à jour les stats périodiquement
   setInterval(async () => {
     try {
       const stats = await server.getStats();
@@ -2087,7 +2036,6 @@ function startRealTimeUpdates() {
     }
   }, 10000);
   
-  // Mettre à jour le classement périodiquement
   setInterval(() => loadLeaderboard(), 30000);
 }
 
@@ -2146,28 +2094,24 @@ async function joinMultiplayerRoom(game) {
     return;
   }
 
-  store.showToast(`Recherche de joueurs en ligne...`, 'info');
+  store.showToast(`🔍 Recherche de joueurs en ligne...`, 'info');
   
   try {
-    // Chercher d'abord une salle existante
     const availableRooms = await server.getRooms(game);
     
     let roomId = null;
     
     if (availableRooms.length > 0) {
-      // Rejoindre une salle existante
       roomId = availableRooms[0].id;
-      store.showToast(`Salle trouvée! Connexion...`, 'info');
+      store.showToast(`🎮 Salle trouvée! Connexion...`, 'info');
     } else {
-      // Créer une nouvelle salle avec un ID fixe
       roomId = `${game}-lobby`;
-      store.showToast(`Création d'une nouvelle salle...`, 'info');
+      store.showToast(`🏠 Création d'une nouvelle salle...`, 'info');
     }
     
     openGame(game);
     
     if (game === 'morpion') {
-      // Passer l'ID de salle spécifique
       await morpionGame.setMode('online', roomId);
     }
   } catch (error) {
@@ -2207,7 +2151,6 @@ function toggleSound() {
   applySettings();
 }
 
-// Authentification
 function handleAuthButton() {
   if (auth.isLoggedIn()) {
     openProfileModal();
@@ -2371,7 +2314,7 @@ window.addEventListener('unhandledrejection', (e) => {
   store.showToast('Erreur de chargement', 'error');
 });
 
-console.log('🚀 GameHub 100% Réel - Prêt à fonctionner!');
+console.log('🚀 GameHub VRAI MULTIJOUEUR - Prêt à fonctionner!');
 </script>
 </body>
 </html>
