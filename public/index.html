@@ -522,50 +522,20 @@ header{display:flex;justify-content:space-between;align-items:center;padding:20p
 
 <script>
 // =========================
-// SERVEUR BACKEND 100% RÉEL - VERSION CORRIGÉE
+// SERVEUR BACKEND 100% RÉEL - CLIENT SOCKET.IO
 // =========================
 class RealGameServer {
   constructor() {
     this.socket = null;
     this.connected = false;
     this.serverUrl = window.location.origin;
-    this.users = new Map();
-    this.rooms = new Map();
-    this.tournaments = new Map();
-    this.leaderboard = new Map();
-    this.initializeData();
-  }
-
-  initializeData() {
-    // Initialiser avec des données de démonstration
-    this.users.set('admin', {
-      id: '1',
-      username: 'admin',
-      password: this.hashPassword('admin123'),
-      email: 'admin@gamehub.com',
-      stats: { totalGames: 0, wins: 0, totalScore: 0, level: 1 },
-      createdAt: new Date()
-    });
-
-    this.leaderboard.set('all', [
-      { username: 'ProGamer', score: 1250, avatar: 'P' },
-      { username: 'MasterPlayer', score: 1100, avatar: 'M' },
-      { username: 'GameChanger', score: 980, avatar: 'G' }
-    ]);
-  }
-
-  hashPassword(password) {
-    return bcryptjs.hashSync(password, 12);
-  }
-
-  verifyPassword(password, hash) {
-    return bcryptjs.compareSync(password, hash);
+    this.token = localStorage.getItem('gamehub-token');
   }
 
   async connect() {
     return new Promise((resolve, reject) => {
       try {
-        this.socket = io({
+        this.socket = io(this.serverUrl, {
           transports: ['websocket', 'polling']
         });
 
@@ -583,87 +553,106 @@ class RealGameServer {
 
         this.socket.on('connect_error', (error) => {
           console.error('Erreur de connexion:', error);
-          console.log('🔄 Mode solo activé');
-          resolve();
+          reject(error);
         });
 
       } catch (error) {
         console.error('Erreur d initialisation:', error);
-        resolve();
+        reject(error);
       }
     });
   }
 
   setupSocketEvents() {
+    // Événements de jeu
     this.socket.on('player-joined', (data) => {
-      console.log('Joueur rejoint:', data);
-      this.updateOnlineDisplays(data.room);
+      this.handlePlayerJoined(data);
     });
 
     this.socket.on('opponent-move', (data) => {
-      if (window.morpionGame && window.morpionGame.mode === 'online') {
-        window.morpionGame.handleOpponentMove(data.move);
-      }
+      this.handleOpponentMove(data);
+    });
+
+    this.socket.on('game-state', (data) => {
+      this.handleGameState(data);
     });
 
     this.socket.on('chat-message', (data) => {
-      if (window.chatSystem) {
-        window.chatSystem.addMessage(data.roomId, {
-          type: 'player',
-          playerName: data.playerName,
-          message: data.message,
-          timestamp: new Date()
-        });
-      }
+      this.handleChatMessage(data);
     });
 
-    this.socket.on('room-joined', (data) => {
-      console.log('Room joined:', data);
+    this.socket.on('tournament-update', (data) => {
+      this.handleTournamentUpdate(data);
+    });
+
+    this.socket.on('global-stats-update', (data) => {
+      this.handleGlobalStatsUpdate(data);
     });
   }
 
-  // Authentification
+  // Authentification via API REST
   async register(userData) {
-    if (this.users.has(userData.username)) {
-      throw new Error('Nom d utilisateur déjà pris');
+    try {
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData)
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        this.token = data.token;
+        localStorage.setItem('gamehub-token', data.token);
+        localStorage.setItem('gamehub-user', JSON.stringify(data.user));
+        return data.user;
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      throw new Error('Erreur de connexion au serveur');
     }
-
-    const user = {
-      id: 'user-' + Date.now(),
-      ...userData,
-      password: this.hashPassword(userData.password),
-      stats: { totalGames: 0, wins: 0, totalScore: 0, level: 1 },
-      achievements: [],
-      createdAt: new Date()
-    };
-
-    this.users.set(userData.username, user);
-    return user;
   }
 
   async login(username, password) {
-    const user = this.users.get(username);
-    if (!user || !this.verifyPassword(password, user.password)) {
-      throw new Error('Identifiants invalides');
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        this.token = data.token;
+        localStorage.setItem('gamehub-token', data.token);
+        localStorage.setItem('gamehub-user', JSON.stringify(data.user));
+        return data.user;
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      throw new Error('Erreur de connexion au serveur');
     }
-    return user;
   }
 
   // Gestion des salles
   async joinRoom(game, playerName, roomId = null) {
     if (!this.connected) await this.connect();
 
-    return new Promise((resolve) => {
-      if (this.connected) {
-        this.socket.emit('join-room', { game, playerName, roomId });
-        this.socket.once('room-joined', (data) => {
-          resolve(data.roomId);
-        });
-        
-        setTimeout(() => resolve(`room-${game}-local`), 1000);
-      } else {
-        resolve(`room-${game}-local`);
-      }
+    return new Promise((resolve, reject) => {
+      this.socket.emit('join-room', { game, playerName, roomId });
+      
+      this.socket.once('player-joined', (data) => {
+        resolve(data.room);
+      });
+
+      this.socket.once('room-full', (data) => {
+        reject(new Error('Salle pleine'));
+      });
+
+      setTimeout(() => reject(new Error('Timeout de connexion')), 5000);
     });
   }
 
@@ -692,55 +681,78 @@ class RealGameServer {
 
   async joinTournament(tournamentId, playerName) {
     if (!this.connected) await this.connect();
+
     this.socket.emit('join-tournament', { tournamentId, playerName });
+  }
+
+  // Gestion des événements
+  handlePlayerJoined(data) {
+    console.log('Joueur rejoint:', data);
+    if (window.morpionGame && window.morpionGame.mode === 'online') {
+      document.getElementById('player-count').textContent = data.room.players.length;
+    }
+  }
+
+  handleOpponentMove(data) {
+    if (window.morpionGame && window.morpionGame.mode === 'online') {
+      window.morpionGame.handleOpponentMove(data.move);
+    }
+  }
+
+  handleGameState(data) {
+    console.log('État du jeu:', data);
+  }
+
+  handleChatMessage(data) {
+    if (window.chatSystem && data.roomId) {
+      window.chatSystem.addMessage(data.roomId, {
+        type: 'player',
+        playerName: data.playerName,
+        message: data.message,
+        timestamp: new Date()
+      });
+    }
+  }
+
+  handleTournamentUpdate(data) {
+    if (window.tournamentSystem) {
+      window.tournamentSystem.updateTournament(data);
+    }
+  }
+
+  handleGlobalStatsUpdate(data) {
+    this.updateOnlineDisplays(data);
+  }
+
+  updateOnlineDisplays(stats) {
+    document.getElementById('morpion-players').textContent = stats.games.morpion * 2;
+    document.getElementById('memory-players').textContent = stats.games.memory * 2;
+    document.getElementById('snake-players').textContent = stats.games.snake * 2;
+    
+    document.getElementById('morpion-online').textContent = stats.games.morpion;
+    document.getElementById('memory-online').textContent = stats.games.memory;
+    document.getElementById('snake-online').textContent = stats.games.snake;
   }
 
   // API pour les données
   async getLeaderboard(game = 'all') {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const data = this.leaderboard.get(game) || [];
-        resolve(data);
-      }, 300);
-    });
-  }
-
-  async getUserStats(username) {
-    const user = this.users.get(username);
-    return user ? user.stats : null;
-  }
-
-  async updateUserStats(username, gameResult) {
-    const user = this.users.get(username);
-    if (user) {
-      user.stats.totalGames++;
-      if (gameResult.won) user.stats.wins++;
-      if (gameResult.score) user.stats.totalScore += gameResult.score;
-      
-      // Mettre à jour le niveau
-      user.stats.level = Math.floor(user.stats.totalScore / 100) + 1;
-      
-      this.users.set(username, user);
-      return user.stats;
+    try {
+      const response = await fetch(`/api/leaderboard/${game}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur chargement classement:', error);
+      return [];
     }
-    return null;
   }
 
-  updateOnlineDisplays(room) {
-    // Mettre à jour les compteurs d'utilisateurs en ligne
-    const stats = {
-      morpionRooms: Array.from(this.rooms.values()).filter(r => r.game === 'morpion').length,
-      memoryRooms: Array.from(this.rooms.values()).filter(r => r.game === 'memory').length,
-      snakeRooms: Array.from(this.rooms.values()).filter(r => r.game === 'snake').length
-    };
-
-    document.getElementById('morpion-players').textContent = stats.morpionRooms * 2;
-    document.getElementById('memory-players').textContent = stats.memoryRooms * 2;
-    document.getElementById('snake-players').textContent = stats.snakeRooms * 2;
-    
-    document.getElementById('morpion-online').textContent = stats.morpionRooms;
-    document.getElementById('memory-online').textContent = stats.memoryRooms;
-    document.getElementById('snake-online').textContent = stats.snakeRooms;
+  async getStats() {
+    try {
+      const response = await fetch('/api/stats');
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur chargement stats:', error);
+      return { onlinePlayers: 0, activeRooms: 0, activeTournaments: 0, games: { morpion: 0, memory: 0, snake: 0 } };
+    }
   }
 }
 
@@ -752,17 +764,17 @@ class AuthSystem {
     this.currentUser = null;
     this.token = localStorage.getItem('gamehub-token');
     this.userData = JSON.parse(localStorage.getItem('gamehub-user') || 'null');
+    
+    if (this.userData) {
+      this.currentUser = this.userData;
+    }
   }
 
   async login(username, password) {
     try {
       const user = await window.server.login(username, password);
       this.currentUser = user;
-      this.token = 'token-' + Date.now();
-      
-      // Sauvegarder dans le localStorage
-      localStorage.setItem('gamehub-token', this.token);
-      localStorage.setItem('gamehub-user', JSON.stringify(user));
+      this.token = window.server.token;
       
       this.updateUI();
       window.store.showToast('Connexion réussie!', 'success');
@@ -777,10 +789,7 @@ class AuthSystem {
     try {
       const user = await window.server.register(userData);
       this.currentUser = user;
-      this.token = 'token-' + Date.now();
-      
-      localStorage.setItem('gamehub-token', this.token);
-      localStorage.setItem('gamehub-user', JSON.stringify(user));
+      this.token = window.server.token;
       
       this.updateUI();
       window.store.showToast('Compte créé avec succès!', 'success');
@@ -895,17 +904,13 @@ class RealGameStore {
   async updateUserStats(gameResult) {
     if (!window.auth.isLoggedIn()) return;
 
-    const user = window.auth.getCurrentUser();
-    const updatedStats = await window.server.updateUserStats(user.username, gameResult);
+    // Mettre à jour les stats locales
+    this.state.gameStats[gameResult.game].wins += gameResult.won ? 1 : 0;
+    this.state.gameStats[gameResult.game].losses += gameResult.won ? 0 : 1;
+    this.state.gameStats[gameResult.game].score += gameResult.score || 0;
     
-    if (updatedStats) {
-      this.state.gameStats[gameResult.game].wins += gameResult.won ? 1 : 0;
-      this.state.gameStats[gameResult.game].losses += gameResult.won ? 0 : 1;
-      this.state.gameStats[gameResult.game].score += gameResult.score || 0;
-      
-      this.saveGameStats();
-      this.checkAchievements(gameResult);
-    }
+    this.saveGameStats();
+    this.checkAchievements(gameResult);
   }
 
   checkAchievements(gameResult) {
@@ -918,8 +923,8 @@ class RealGameStore {
     }
 
     // Niveau 5
-    const user = window.auth.getCurrentUser();
-    if (user && user.stats.level >= 5) {
+    const totalScore = Object.values(this.state.gameStats).reduce((acc, stats) => acc + stats.score, 0);
+    if (totalScore >= 500) {
       this.unlockAchievement('level_5');
       unlockedAny = true;
     }
@@ -1486,9 +1491,14 @@ let morpionGame = {
   }
 };
 
-// Memory Game (similaire structure)
+// Memory Game
 let memoryGame = {
-  // ... implementation similaire au morpion
+  cards: [],
+  flippedCards: [],
+  matchedPairs: 0,
+  score: 0,
+  startTime: null,
+
   init() {
     const icons = ['🎮','🎲','🎯','🎪','🎨','🎭','🎺','🎸'];
     this.cards = [...icons, ...icons];
@@ -1609,7 +1619,7 @@ let memoryGame = {
   }
 };
 
-// Snake Game (similaire structure)
+// Snake Game
 let snakeGame = {
   snake: [],
   food: {},
@@ -1929,30 +1939,29 @@ async function loadInitialData() {
   await loadLeaderboard();
   loadAchievements();
   tournamentSystem.updateTournamentsDisplay();
-  updateOnlineCounters();
+  
+  // Charger les stats en ligne
+  try {
+    const stats = await server.getStats();
+    server.updateOnlineDisplays(stats);
+  } catch (error) {
+    console.error('Erreur chargement stats:', error);
+  }
 }
 
 function startRealTimeUpdates() {
-  // Mettre à jour les compteurs en ligne périodiquement
-  setInterval(updateOnlineCounters, 10000);
+  // Mettre à jour les stats périodiquement
+  setInterval(async () => {
+    try {
+      const stats = await server.getStats();
+      server.updateOnlineDisplays(stats);
+    } catch (error) {
+      console.error('Erreur mise à jour stats:', error);
+    }
+  }, 10000);
   
   // Mettre à jour le classement périodiquement
   setInterval(() => loadLeaderboard(), 30000);
-}
-
-function updateOnlineCounters() {
-  // Ces données viendraient normalement du serveur
-  const morpionPlayers = Math.floor(Math.random() * 50) + 20;
-  const memoryPlayers = Math.floor(Math.random() * 30) + 10;
-  const snakePlayers = Math.floor(Math.random() * 40) + 15;
-
-  document.getElementById('morpion-players').textContent = morpionPlayers;
-  document.getElementById('memory-players').textContent = memoryPlayers;
-  document.getElementById('snake-players').textContent = snakePlayers;
-
-  document.getElementById('morpion-online').textContent = Math.floor(morpionPlayers / 4);
-  document.getElementById('memory-online').textContent = Math.floor(memoryPlayers / 3);
-  document.getElementById('snake-online').textContent = Math.floor(snakePlayers / 5);
 }
 
 // =========================
@@ -2197,16 +2206,6 @@ function loadAchievements() {
   });
 
   document.getElementById('achievements-count').textContent = unlockedCount;
-}
-
-// =========================
-// SERVICE WORKER (PWA)
-// =========================
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    // Enregistrement simplifié du Service Worker
-    navigator.serviceWorker.register('/sw.js').catch(console.error);
-  });
 }
 
 // =========================
