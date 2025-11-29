@@ -142,13 +142,18 @@ app.post('/api/login', async (req, res) => {
 // NOUVELLE ROUTE : Lister les salles disponibles
 app.get('/api/rooms/:game', (req, res) => {
   const game = req.params.game;
+  
+  // Nettoyer d'abord les salles vides
+  cleanupEmptyRooms();
+  
   const availableRooms = Array.from(rooms.values())
     .filter(room => room.game === game && room.players.length < 2)
     .map(room => ({
       id: room.id,
       players: room.players.length,
       status: room.status,
-      game: room.game
+      game: room.game,
+      createdAt: room.createdAt
     }));
   
   res.json(availableRooms);
@@ -216,6 +221,20 @@ function updateGlobalStats() {
   io.emit('global-stats-update', stats);
 }
 
+// Nettoyer les salles vides
+function cleanupEmptyRooms() {
+  let deletedCount = 0;
+  rooms.forEach((room, roomId) => {
+    if (room.players.length === 0) {
+      rooms.delete(roomId);
+      deletedCount++;
+    }
+  });
+  if (deletedCount > 0) {
+    console.log(`🧹 Nettoyage: ${deletedCount} salles vides supprimées`);
+  }
+}
+
 // WebSocket Events AMÉLIORÉS
 io.on('connection', (socket) => {
   console.log('🔗 Nouveau joueur connecté:', socket.id);
@@ -233,84 +252,138 @@ io.on('connection', (socket) => {
     socket.emit('rooms-list', availableRooms);
   });
 
+  // CRÉATION DE SALLE
+  socket.on('create-room', (data) => {
+    const { game, playerName, roomType = 'public' } = data;
+    
+    // Générer un ID de salle unique
+    const roomId = `${game}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    const room = {
+      id: roomId,
+      game,
+      players: [],
+      status: 'waiting',
+      createdAt: new Date(),
+      board: Array(9).fill(''),
+      currentPlayer: 'X',
+      type: roomType
+    };
+
+    rooms.set(roomId, room);
+
+    // Le créateur rejoint automatiquement
+    const player = {
+      id: socket.id,
+      name: playerName,
+      symbol: 'X',
+      joinedAt: new Date()
+    };
+    
+    room.players.push(player);
+    socket.join(roomId);
+    rooms.set(roomId, room);
+
+    console.log(`🎮 ${playerName} a créé la salle ${roomId}`);
+
+    socket.emit('room-created', {
+      roomId: roomId,
+      player: player,
+      room: room
+    });
+
+    // Notifier tout le monde de la nouvelle salle
+    io.emit('room-list-update', {
+      game: game,
+      rooms: Array.from(rooms.values())
+        .filter(r => r.game === game && r.players.length < 2)
+    });
+
+    updateGlobalStats();
+  });
+
+  // REJOINDRE UNE SALLE
   socket.on('join-room', (data) => {
     const { game, playerName, roomId } = data;
     
-    // Utiliser un ID de salle fixe pour le jeu spécifique ou celui fourni
-    const roomKey = roomId || `${game}-lobby`;
+    let room = rooms.get(roomId);
     
-    let room = rooms.get(roomKey);
     if (!room) {
-      room = {
-        id: roomKey,
-        game,
-        players: [],
-        status: 'waiting',
-        createdAt: new Date(),
-        board: Array(9).fill(''), // État du jeu pour le morpion
-        currentPlayer: 'X'
-      };
-      rooms.set(roomKey, room);
+      socket.emit('room-not-found', { message: 'Salle introuvable' });
+      return;
     }
 
-    if (room.players.length < 2) {
-      // Vérifier si le joueur n'est pas déjà dans la salle
-      const existingPlayer = room.players.find(p => p.id === socket.id);
-      if (existingPlayer) {
-        socket.emit('room-joined', {
-          player: existingPlayer,
-          room: room,
-          players: room.players
-        });
-        return;
-      }
+    if (room.players.length >= 2) {
+      socket.emit('room-full', { message: 'Salle pleine' });
+      return;
+    }
 
-      const player = {
-        id: socket.id,
-        name: playerName,
-        symbol: room.players.length === 0 ? 'X' : 'O',
-        joinedAt: new Date()
-      };
-      
-      room.players.push(player);
-      socket.join(roomKey);
-      rooms.set(roomKey, room);
-
-      console.log(`🎮 ${playerName} a rejoint ${roomKey} (${room.players.length}/2 joueurs)`);
-
-      // Notifier TOUS les clients de la mise à jour
-      io.to(roomKey).emit('player-joined', {
-        player,
+    // Vérifier si le joueur n'est pas déjà dans la salle
+    const existingPlayer = room.players.find(p => p.id === socket.id);
+    if (existingPlayer) {
+      socket.emit('room-joined', {
+        player: existingPlayer,
         room: room,
         players: room.players
       });
-
-      // Si 2 joueurs sont présents, démarrer la partie
-      if (room.players.length === 2) {
-        room.status = 'playing';
-        rooms.set(roomKey, room);
-        
-        io.to(roomKey).emit('game-start', {
-          message: 'Partie commencée!',
-          players: room.players,
-          currentPlayer: 'X',
-          roomId: roomKey
-        });
-      }
-
-      // Mettre à jour les stats globales
-      updateGlobalStats();
-    } else {
-      socket.emit('room-full', { message: 'Salle pleine' });
+      return;
     }
+
+    const player = {
+      id: socket.id,
+      name: playerName,
+      symbol: room.players.length === 0 ? 'X' : 'O',
+      joinedAt: new Date()
+    };
+    
+    room.players.push(player);
+    socket.join(roomId);
+    rooms.set(roomId, room);
+
+    console.log(`🎮 ${playerName} a rejoint ${roomId} (${room.players.length}/2 joueurs)`);
+
+    // Notifier TOUS les clients de la mise à jour
+    io.to(roomId).emit('player-joined', {
+      player,
+      room: room,
+      players: room.players
+    });
+
+    // Mettre à jour la liste des salles pour tout le monde
+    io.emit('room-list-update', {
+      game: game,
+      rooms: Array.from(rooms.values())
+        .filter(r => r.game === game && r.players.length < 2)
+    });
+
+    // Si 2 joueurs sont présents, démarrer la partie
+    if (room.players.length === 2) {
+      room.status = 'playing';
+      rooms.set(roomId, room);
+      
+      io.to(roomId).emit('game-start', {
+        message: 'Partie commencée!',
+        players: room.players,
+        currentPlayer: 'X',
+        roomId: roomId
+      });
+    }
+
+    updateGlobalStats();
   });
 
+  // GESTION DES MOUVEMENTS DE JEU - CORRIGÉE
   socket.on('game-move', (data) => {
     const { game, move, roomId } = data;
     const room = rooms.get(roomId);
     
+    if (!room) {
+      socket.emit('invalid-game-state', { message: 'Salle inexistante' });
+      return;
+    }
+
     // CORRECTION : Accepter les mouvements dès qu'il y a 2 joueurs
-    if (room && room.players.length === 2) {
+    if (room.players.length === 2) {
       // Vérifier que c'est le bon joueur
       const currentPlayer = room.players.find(p => p.id === socket.id);
       if (!currentPlayer) {
@@ -386,8 +459,6 @@ io.on('connection', (socket) => {
           }
         }, 3000);
       }
-    } else if (!room) {
-      socket.emit('invalid-game-state', { message: 'Salle inexistante' });
     } else {
       socket.emit('invalid-game-state', { message: 'Partie non prête : en attente d\'un second joueur' });
     }
@@ -449,6 +520,8 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    console.log('👋 Joueur déconnecté:', socket.id);
+    
     // Retirer le joueur des salles
     rooms.forEach((room, roomId) => {
       const playerIndex = room.players.findIndex(p => p.id === socket.id);
@@ -470,9 +543,16 @@ io.on('connection', (socket) => {
           room.currentPlayer = 'X';
           rooms.set(roomId, room);
           
+          // Mettre à jour la liste des salles
+          io.emit('room-list-update', {
+            game: room.game,
+            rooms: Array.from(rooms.values())
+              .filter(r => r.game === room.game && r.players.length < 2)
+          });
+          
         } else {
-          // Supprimer la salle si vide
-          rooms.delete(roomId);
+          // Marquer pour suppression mais garder un moment au cas où le joueur se reconnecte
+          console.log(`Salle ${roomId} vide, marquée pour suppression`);
         }
         
         console.log(`👋 ${playerName} a quitté ${roomId}`);
@@ -544,6 +624,9 @@ setInterval(() => {
   updateGlobalStats();
 }, 10000); // Toutes les 10 secondes
 
+// Nettoyer les salles vides périodiquement
+setInterval(cleanupEmptyRooms, 30000); // Toutes les 30 secondes
+
 // Initialiser les données
 initializeData();
 
@@ -552,4 +635,7 @@ server.listen(PORT, () => {
   console.log(`🎮 GameHub Server démarré sur le port ${PORT}`);
   console.log(`📍 URL: http://localhost:${PORT}`);
   console.log(`🔗 Multijoueur activé - Les joueurs peuvent maintenant se voir et jouer ensemble!`);
+  console.log(`✅ CRÉATION DE SALLE activée`);
+  console.log(`✅ REJOINDRE DES SALLES activé`);
+  console.log(`✅ JEU MULTIJOUEUR FONCTIONNEL!`);
 });
