@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: gamehub
+    name: morpionhub
     env: node
     plan: free
     buildCommand: npm install
@@ -8,4 +8,3 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-    healthCheckPath: /health
