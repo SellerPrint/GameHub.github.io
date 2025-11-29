@@ -1,2381 +1,420 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>GameHub - VRAI Multijoueur Fonctionnel</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/bcryptjs/2.4.3/bcrypt.min.js"></script>
-<style>
-:root{
-  --primary:#6C63FF;--primary-dark:#554fd8;--secondary:#FF6584;--accent:#36D1DC;
-  --light:#fff;--dark:#2D2B55;--darker:#1E1E2E;--gray:#f0f0f0;--dark-gray:#3D3D5C;
-  --success:#32c766;--danger:#ff5252;--warning:#ffb142;--info:#2e86de;
-  --shadow:0 10px 30px rgba(0,0,0,.15);--shadow-lg:0 20px 40px rgba(0,0,0,.2);
-  --transition:all .25s ease;--bounce:cubic-bezier(0.68,-0.55,0.265,1.55);--radius:12px;
-  font-synthesis:none;
-}
-.dark-mode{--light:#1e1e2e;--dark:#f0f0f0;--gray:#2d2d3d;--shadow:0 10px 30px rgba(0,0,0,.5);}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Morpion Multiplayer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-*{box-sizing:border-box;margin:0;padding:0}
-body{
-  font-family:"Poppins","Segoe UI",sans-serif;
-  background:linear-gradient(135deg,var(--primary),var(--accent));
-  min-height:100vh;padding:20px;color:var(--dark);transition:var(--transition);line-height:1.6;
-}
-.container{max-width:1200px;margin:0 auto}
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
 
-/* Header */
-header{display:flex;justify-content:space-between;align-items:center;padding:20px 0;margin-bottom:32px;color:var(--light)}
-.logo{display:flex;align-items:center;gap:12px;cursor:pointer}
-.logo-icon{font-size:2.2rem;background:var(--light);color:var(--primary);width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow);transition:var(--transition)}
-.logo:hover .logo-icon{transform:rotate(15deg) scale(1.1)}
-.logo-text{font-size:1.6rem;font-weight:700}
-.logo-text span{color:var(--secondary)}
-.header-controls{display:flex;gap:10px;align-items:center}
-.user-info{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.1);padding:8px 12px;border-radius:20px;backdrop-filter:blur(8px)}
-.user-avatar{width:32px;height:32px;border-radius:50%;background:var(--secondary);display:flex;align-items:center;justify-content:center;color:var(--light);font-weight:700;font-size:0.875rem}
-.user-name{font-weight:600;font-size:0.875rem}
-.control-btn{background:rgba(255,255,255,.14);color:var(--light);border:0;width:44px;height:44px;border-radius:50%;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:var(--transition)}
-.control-btn:hover{transform:scale(1.06);background:rgba(255,255,255,.22)}
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
 
-/* Navigation */
-.nav-tabs{display:flex;background:rgba(255,255,255,.1);border-radius:var(--radius);padding:6px;margin-bottom:24px;backdrop-filter:blur(8px);gap:4px}
-.nav-tab{flex:1;text-align:center;padding:12px;color:var(--light);cursor:pointer;border-radius:8px;font-weight:600;transition:var(--transition)}
-.nav-tab.active{background:var(--light);color:var(--primary);box-shadow:var(--shadow)}
+        header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
 
-/* Hero */
-.hero{padding:40px 20px;border-radius:var(--radius);background:rgba(255,255,255,.1);backdrop-filter:blur(8px);text-align:center;color:var(--light);box-shadow:var(--shadow);margin-bottom:24px}
-.hero h1{font-size:2.6rem;margin-bottom:8px}
-.hero p{opacity:.95;max-width:720px;margin:0 auto 18px;font-size:1.125rem}
-.cta-button{background:var(--secondary);color:var(--light);border:0;padding:12px 22px;border-radius:50px;font-weight:700;cursor:pointer;display:inline-flex;gap:10px;align-items:center;box-shadow:0 6px 18px rgba(255,101,132,.28);transition:var(--transition)}
-.cta-button:hover{transform:translateY(-3px);background:#ff4a6d}
+        .game-section {
+            padding: 30px;
+            text-align: center;
+        }
 
-/* Games Grid */
-.games-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
-.game-card{background:var(--light);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);cursor:pointer;transition:var(--transition);display:flex;flex-direction:column}
-.game-card:hover{transform:translateY(-8px)}
-.game-image{height:140px;background:linear-gradient(135deg,var(--primary),var(--accent));display:flex;align-items:center;justify-content:center;font-size:3rem;color:var(--light)}
-.game-content{padding:16px;flex:1}
-.game-content h3{font-size:1.3rem;margin-bottom:6px;color:var(--dark)}
-.game-content p{color:var(--dark-gray);margin-bottom:12px;font-size:0.875rem}
-.game-stats{display:flex;justify-content:space-between;align-items:center;font-size:.9rem;color:var(--dark-gray)}
-.online-dot{width:8px;height:8px;background:var(--success);border-radius:50%;display:inline-block;margin-right:8px;animation:pulse 2s infinite}
+        .status {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
 
-/* Animations */
-@keyframes pulse{0%{opacity:1}50%{opacity:.5}100%{opacity:1}}
-@keyframes slideInUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
-@keyframes bounceIn{0%{opacity:0;transform:scale(.3)}50%{opacity:1;transform:scale(1.05)}70%{transform:scale(.9)}100%{opacity:1;transform:scale(1)}}
+        .waiting {
+            background: #fff3cd;
+            color: #856404;
+        }
 
-/* Leaderboard */
-.leaderboard-container{background:var(--light);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
-.leaderboard-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-.leaderboard-title{font-size:1.4rem;color:var(--primary)}
-.leaderboard-filters{display:flex;gap:8px}
-.filter-btn{padding:6px 12px;border-radius:6px;border:1px solid var(--gray);background:var(--light);cursor:pointer;transition:var(--transition);font-size:0.875rem}
-.filter-btn.active{background:var(--primary);color:var(--light);border-color:var(--primary)}
-.leaderboard-list{list-style:none}
-.leaderboard-item{display:flex;align-items:center;padding:10px;border-radius:10px;margin-bottom:8px;background:var(--gray);transition:var(--transition)}
-.leaderboard-item.you{background:rgba(108,99,255,.06);border-left:4px solid var(--primary)}
-.rank{width:36px;text-align:center;font-weight:700;font-size:1.125rem}
-.rank-1{color:gold}
-.rank-2{color:silver}
-.rank-3{color:#cd7f32}
-.player-avatar{width:40px;height:40px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:var(--light);font-weight:700;margin-right:10px}
-.player-name{font-weight:600;flex:1}
-.player-score{font-weight:700;color:var(--primary)}
+        .playing {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
 
-/* Game Containers */
-.game-container{display:none;background:var(--light);padding:18px;border-radius:var(--radius);box-shadow:var(--shadow);margin-top:18px}
-.game-container.active{display:block;animation:bounceIn .5s var(--bounce)}
-.game-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
-.back-button,.reset-button,.instruction-button,.mode-button{background:var(--primary);color:var(--light);border:0;padding:9px 14px;border-radius:8px;cursor:pointer;font-weight:700;transition:var(--transition);display:flex;align-items:center;gap:6px}
-.mode-button.active{background:var(--secondary)}
-.game-title{color:var(--primary);font-size:1.3rem;flex:1;text-align:center}
-.score-display{background:var(--gray);padding:8px 12px;border-radius:8px;font-weight:700;color:var(--dark)}
-.game-mode-selector{display:flex;gap:8px;margin:12px 0}
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            max-width: 300px;
+            margin: 0 auto 20px;
+        }
 
-/* Morpion */
-.morpion-container{display:flex;flex-direction:column;align-items:center}
-.board{display:grid;grid-template-columns:repeat(3,120px);gap:10px;margin:12px auto}
-.cell{width:120px;height:120px;font-size:3rem;display:flex;align-items:center;justify-content:center;background:var(--gray);border-radius:12px;cursor:pointer;border:3px solid var(--primary);user-select:none;transition:var(--transition)}
-.cell.x{color:var(--primary);animation:bounceIn .3s var(--bounce)}
-.cell.o{color:var(--secondary);animation:bounceIn .3s var(--bounce)}
-.cell.win{background:var(--success);color:var(--light);border-color:var(--success)}
+        .cell {
+            aspect-ratio: 1;
+            background: #34495e;
+            border: none;
+            border-radius: 10px;
+            font-size: 2em;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
 
-/* Memory */
-.memory-board{display:grid;grid-template-columns:repeat(4,100px);gap:10px;justify-content:center;margin:12px auto}
-.memory-card{width:100px;height:100px;border-radius:10px;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--light);cursor:pointer;transform-style:preserve-3d;transition:transform .45s var(--bounce)}
-.memory-card.flipped{background:var(--light);color:var(--dark);transform:rotateY(180deg)}
-.memory-card.matched{background:var(--success);color:var(--light);cursor:default;transform:scale(.98);animation:pulse 1s}
+        .cell:hover {
+            background: #4a6278;
+            transform: scale(1.05);
+        }
 
-/* Snake */
-.snake-canvas{display:block;margin:10px auto;border-radius:12px;border:3px solid var(--primary);background:var(--light);box-shadow:var(--shadow)}
-.snake-controls{display:grid;grid-template-columns:repeat(3,60px);grid-template-rows:repeat(3,60px);gap:6px;justify-content:center;margin-top:12px}
-.snake-controls button{background:var(--primary);color:var(--light);border:0;border-radius:8px;font-size:1.1rem;cursor:pointer;transition:var(--transition);min-height:44px}
-.snake-controls button:active{transform:scale(.96)}
+        .cell.x { color: #e74c3c; }
+        .cell.o { color: #3498db; }
 
-/* Modal */
-.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
-.modal.active{display:flex;animation:fadeIn .3s}
-.modal-content{background:var(--light);border-radius:var(--radius);padding:1.5rem;max-width:500px;width:90%;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);position:relative;animation:slideInUp .3s var(--bounce)}
-.modal-close{position:absolute;top:1rem;right:1rem;background:none;border:0;font-size:1.5rem;cursor:pointer;color:var(--dark-gray)}
-.modal-title{font-size:1.5rem;color:var(--primary);margin-bottom:1rem}
+        .players {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+        }
 
-/* Achievements */
-.achievements-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem}
-.achievement-card{background:var(--gray);border-radius:var(--radius);padding:1rem;text-align:center;transition:var(--transition)}
-.achievement-card.unlocked{background:rgba(108,99,255,.1);border:2px solid var(--primary)}
-.achievement-icon{font-size:2.5rem;margin-bottom:0.5rem}
-.achievement-name{font-weight:700;margin-bottom:0.5rem}
-.achievement-desc{font-size:0.875rem;color:var(--dark-gray)}
+        .player {
+            padding: 15px;
+            border-radius: 10px;
+            background: #ecf0f1;
+            min-width: 150px;
+        }
 
-/* Toast */
-.toast{position:fixed;top:20px;right:20px;background:var(--success);color:var(--light);padding:1rem;border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:1001;display:flex;align-items:center;gap:0.75rem;transform:translateX(150%);transition:transform .3s var(--bounce)}
-.toast.show{transform:translateX(0)}
-.toast.error{background:var(--danger)}
-.toast.warning{background:var(--warning)}
-.toast.info{background:var(--info)}
-.toast-icon{font-size:1.5rem}
+        .player.active {
+            background: #3498db;
+            color: white;
+        }
 
-/* Chat */
-.chat-container{background:var(--gray);border-radius:var(--radius);padding:1rem;margin-top:1rem;max-height:300px;display:flex;flex-direction:column}
-.chat-messages{flex:1;overflow-y:auto;margin-bottom:1rem}
-.chat-message{padding:0.5rem;margin-bottom:0.5rem;background:var(--light);border-radius:var(--radius)}
-.chat-input{display:flex;gap:0.5rem}
-.chat-input input{flex:1;padding:0.5rem;border:1px solid var(--gray);border-radius:var(--radius)}
-.chat-input button{padding:0.5rem 1rem;background:var(--primary);color:var(--light);border:0;border-radius:var(--radius);cursor:pointer}
+        .controls {
+            margin: 20px 0;
+        }
 
-/* Tournament */
-.tournament-card{background:var(--light);border-radius:var(--radius);padding:1rem;margin-bottom:1rem;box-shadow:var(--shadow)}
-.tournament-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem}
-.tournament-name{font-weight:700;color:var(--primary)}
-.tournament-status{background:var(--success);color:var(--light);padding:0.25rem 0.5rem;border-radius:1rem;font-size:0.75rem}
-.tournament-info{display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;margin-bottom:1rem}
-.tournament-stat{text-align:center}
-.tournament-stat-value{font-weight:700;font-size:1.25rem}
-.tournament-stat-label{font-size:0.75rem;color:var(--dark-gray)}
+        button {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
 
-/* Forms */
-.form-group{margin-bottom:1rem}
-.form-group label{display:block;margin-bottom:0.5rem;font-weight:600}
-.form-group input{width:100%;padding:0.75rem;border:1px solid var(--gray);border-radius:var(--radius);font-size:1rem}
-.form-actions{display:flex;gap:0.5rem;margin-top:1.5rem}
+        button:hover {
+            background: #219a52;
+            transform: translateY(-2px);
+        }
 
-/* Responsive */
-@media (max-width:768px){
-  .hero h1{font-size:2rem}
-  .board{grid-template-columns:repeat(3,90px)}
-  .cell{width:90px;height:90px;font-size:2.4rem}
-  .memory-board{grid-template-columns:repeat(4,70px)}
-  .memory-card{width:70px;height:70px;font-size:1.6rem}
-  .snake-canvas{width:300px;height:300px}
-  .game-header{flex-direction:column;align-items:stretch}
-  .game-title{order:-1;margin-bottom:1rem}
-}
-@media (max-width:480px){
-  .board{grid-template-columns:repeat(3,70px)}
-  .cell{width:70px;height:70px;font-size:2rem}
-  .memory-board{grid-template-columns:repeat(4,60px)}
-  .memory-card{width:60px;height:60px;font-size:1.3rem}
-  .nav-tabs{flex-direction:column}
-  .games-grid{grid-template-columns:1fr}
-}
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+        }
 
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-</style>
+        .chat {
+            margin-top: 20px;
+            border-top: 2px solid #ecf0f1;
+            padding-top: 20px;
+        }
+
+        .chat-messages {
+            height: 150px;
+            overflow-y: auto;
+            border: 1px solid #bdc3c7;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+        }
+
+        .chat-input {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 20px;
+            outline: none;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
 </head>
 <body>
-<div class="container">
-  <header>
-    <div class="logo" id="logo">
-      <div class="logo-icon"><i class="fas fa-gamepad"></i></div>
-      <div class="logo-text">Game<span>Hub</span></div>
-    </div>
-    <div class="header-controls">
-      <div class="user-info" id="user-info" style="display:none">
-        <div class="user-avatar" id="user-avatar">J</div>
-        <div class="user-name" id="user-name">Joueur</div>
-      </div>
-      <button id="theme-toggle" class="control-btn" title="Changer le thème"><i class="fas fa-moon"></i></button>
-      <button id="sound-toggle" class="control-btn" title="Activer/Désactiver le son"><i class="fas fa-volume-up"></i></button>
-      <button id="auth-btn" class="control-btn" title="Connexion"><i class="fas fa-user"></i></button>
-    </div>
-  </header>
+    <div class="container">
+        <header>
+            <h1>🎮 Morpion Multiplayer</h1>
+            <p>Jouez au morpion en temps réel contre d'autres joueurs !</p>
+        </header>
 
-  <div class="nav-tabs">
-    <div class="nav-tab active" data-tab="home">Accueil</div>
-    <div class="nav-tab" data-tab="games">Jeux</div>
-    <div class="nav-tab" data-tab="leaderboard">Classement</div>
-    <div class="nav-tab" data-tab="multiplayer">Multijoueur</div>
-    <div class="nav-tab" data-tab="tournaments">Tournois</div>
-    <div class="nav-tab" data-tab="achievements">Succès</div>
-  </div>
+        <div class="game-section">
+            <!-- Écran d'accueil -->
+            <div id="home-screen">
+                <div class="status">
+                    <p>Prêt à jouer ?</p>
+                </div>
+                <div class="controls">
+                    <input type="text" id="playerName" placeholder="Votre pseudo" maxlength="15">
+                    <button onclick="joinGame()">Rejoindre une partie</button>
+                </div>
+            </div>
 
-  <!-- HOME -->
-  <section id="home" class="section active">
-    <div class="hero">
-      <h1>Bienvenue sur GameHub</h1>
-      <p>Plateforme de jeux 100% réelle avec VRAI multijoueur en temps réel !</p>
-      <button class="cta-button" id="start-btn"><i class="fas fa-play"></i> Commencer à jouer</button>
-    </div>
-    <div class="games-grid">
-      <div class="game-card" data-game="morpion">
-        <div class="game-image"><i class="fas fa-times"></i></div>
-        <div class="game-content">
-          <h3>Morpion</h3>
-          <p>Jouez contre l'IA ou contre de VRAIS adversaires en ligne.</p>
-          <div class="game-stats">
-            <div><span class="online-dot"></span><span id="morpion-players">0</span> joueurs</div>
-            <div><i class="fas fa-star"></i> 4.8</div>
-          </div>
+            <!-- En attente d'adversaire -->
+            <div id="waiting-screen" class="hidden">
+                <div class="status waiting">
+                    <p>⏳ En attente d'un adversaire...</p>
+                </div>
+                <div class="controls">
+                    <button onclick="leaveQueue()">Quitter la file</button>
+                </div>
+            </div>
+
+            <!-- Partie en cours -->
+            <div id="game-screen" class="hidden">
+                <div class="status playing">
+                    <p id="game-status">Partie en cours</p>
+                </div>
+
+                <div class="players">
+                    <div id="player1" class="player">
+                        <div id="player1-name">Joueur 1</div>
+                        <div>X</div>
+                    </div>
+                    <div id="player2" class="player">
+                        <div id="player2-name">Joueur 2</div>
+                        <div>O</div>
+                    </div>
+                </div>
+
+                <div class="board" id="game-board">
+                    <!-- Les cases seront générées en JS -->
+                </div>
+
+                <div class="chat">
+                    <div class="chat-messages" id="chat-messages"></div>
+                    <div class="chat-input">
+                        <input type="text" id="chat-input" placeholder="Tapez votre message...">
+                        <button onclick="sendMessage()">Envoyer</button>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button onclick="leaveGame()">Quitter la partie</button>
+                </div>
+            </div>
         </div>
-      </div>
-      <div class="game-card" data-game="memory">
-        <div class="game-image"><i class="fas fa-brain"></i></div>
-        <div class="game-content">
-          <h3>Memory</h3>
-          <p>Testez votre mémoire contre d'autres joueurs.</p>
-          <div class="game-stats">
-            <div><span class="online-dot"></span><span id="memory-players">0</span> joueurs</div>
-            <div><i class="fas fa-star"></i> 4.6</div>
-          </div>
-        </div>
-      </div>
-      <div class="game-card" data-game="snake">
-        <div class="game-image"><i class="fas fa-cog"></i></div>
-        <div class="game-content">
-          <h3>Snake</h3>
-          <p>Le classique du serpent en mode multijoueur.</p>
-          <div class="game-stats">
-            <div><span class="online-dot"></span><span id="snake-players">0</span> joueurs</div>
-            <div><i class="fas fa-star"></i> 4.9</div>
-          </div>
-        </div>
-      </div>
     </div>
-  </section>
 
-  <!-- GAMES -->
-  <section id="games" class="section">
-    <h2 style="color:var(--light);text-align:center;margin-bottom:12px">Choisissez votre jeu</h2>
-    <div class="games-grid">
-      <div class="game-card" data-game="morpion"><div class="game-image"><i class="fas fa-times"></i></div><div class="game-content"><h3>Morpion</h3><p>IA avancée et VRAI multijoueur.</p></div></div>
-      <div class="game-card" data-game="memory"><div class="game-image"><i class="fas fa-brain"></i></div><div class="game-content"><h3>Memory</h3><p>Parties chronométrées.</p></div></div>
-      <div class="game-card" data-game="snake"><div class="game-image"><i class="fas fa-cog"></i></div><div class="game-content"><h3>Snake</h3><p>Compétition en temps réel.</p></div></div>
-    </div>
-  </section>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let currentGame = null;
+        let playerName = '';
 
-  <!-- LEADERBOARD -->
-  <section id="leaderboard" class="section">
-    <div class="leaderboard-container">
-      <div class="leaderboard-header">
-        <h3 class="leaderboard-title">Classement Global</h3>
-        <div class="leaderboard-filters">
-          <button class="filter-btn active" data-filter="all">Tous</button>
-          <button class="filter-btn" data-filter="morpion">Morpion</button>
-          <button class="filter-btn" data-filter="memory">Memory</button>
-          <button class="filter-btn" data-filter="snake">Snake</button>
-        </div>
-      </div>
-      <ul id="leaderboard-list" class="leaderboard-list"></ul>
-    </div>
-  </section>
-
-  <!-- MULTIPLAYER -->
-  <section id="multiplayer" class="section">
-    <h2 style="color:var(--light);text-align:center;margin-bottom:12px">Salles Multijoueur</h2>
-    <div class="games-grid">
-      <div class="game-card" data-game="morpion-multi">
-        <div class="game-image" style="background:linear-gradient(135deg,#FF6584,#FF9E7D)"><i class="fas fa-users"></i></div>
-        <div class="game-content">
-          <h3>Salle Morpion</h3>
-          <p>Jouez contre de VRAIS adversaires en ligne.</p>
-          <div class="game-stats">
-            <div><span class="online-dot"></span><span id="morpion-online">0</span> en ligne</div>
-            <div><button class="cta-button join-room" data-game="morpion" style="padding:6px 10px;font-size:.9rem">Rejoindre</button></div>
-          </div>
-        </div>
-      </div>
-      <div class="game-card" data-game="memory-multi">
-        <div class="game-image" style="background:linear-gradient(135deg,#36D1DC,#5B86E5)"><i class="fas fa-users"></i></div>
-        <div class="game-content">
-          <h3>Salle Memory</h3>
-          <p>Parties en duo chronométrées.</p>
-          <div class="game-stats">
-            <div><span class="online-dot"></span><span id="memory-online">0</span> en ligne</div>
-            <div><button class="cta-button join-room" data-game="memory" style="padding:6px 10px;font-size:.9rem">Rejoindre</button></div>
-          </div>
-        </div>
-      </div>
-      <div class="game-card" data-game="snake-multi">
-        <div class="game-image" style="background:linear-gradient(135deg,#32c766,#36D1DC)"><i class="fas fa-users"></i></div>
-        <div class="game-content">
-          <h3>Salle Snake</h3>
-          <p>Battle royale de serpents.</p>
-          <div class="game-stats">
-            <div><span class="online-dot"></span><span id="snake-online">0</span> en ligne</div>
-            <div><button class="cta-button join-room" data-game="snake" style="padding:6px 10px;font-size:.9rem">Rejoindre</button></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- TOURNAMENTS -->
-  <section id="tournaments" class="section">
-    <div class="leaderboard-container">
-      <div class="leaderboard-header">
-        <h3 class="leaderboard-title">Tournois Actifs</h3>
-        <button class="cta-button" id="create-tournament" style="padding:8px 16px"><i class="fas fa-plus"></i> Créer un tournoi</button>
-      </div>
-      <div id="tournaments-list"></div>
-    </div>
-  </section>
-
-  <!-- ACHIEVEMENTS -->
-  <section id="achievements" class="section">
-    <div class="leaderboard-container">
-      <div class="leaderboard-header">
-        <h3 class="leaderboard-title">Mes Succès</h3>
-        <div class="score-display">Total: <span id="achievements-count">0</span>/12 débloqués</div>
-      </div>
-      <div id="achievements-grid" class="achievements-grid"></div>
-    </div>
-  </section>
-
-  <!-- GAME CONTAINERS -->
-  <!-- MORPION -->
-  <div id="morpion" class="game-container" aria-hidden="true">
-    <div class="game-header">
-      <button class="back-button" id="morpion-back"><i class="fas fa-arrow-left"></i> Retour</button>
-      <div class="game-title">Morpion</div>
-      <div class="score-display">Score: <span id="morpion-score">0</span></div>
-      <button class="instruction-button" id="morpion-info"><i class="fas fa-info-circle"></i> Instructions</button>
-      <button class="reset-button" id="morpion-reset"><i class="fas fa-redo"></i> Nouvelle partie</button>
-    </div>
-    
-    <div class="game-mode-selector">
-      <button class="mode-button active" data-mode="robot-easy"><i class="fas fa-robot"></i> Facile</button>
-      <button class="mode-button" data-mode="robot-medium"><i class="fas fa-robot"></i> Moyen</button>
-      <button class="mode-button" data-mode="robot-hard"><i class="fas fa-robot"></i> Difficile</button>
-      <button class="mode-button" data-mode="online"><i class="fas fa-wifi"></i> En Ligne</button>
-    </div>
-    
-    <div id="morpion-instructions" style="display:none;margin-bottom:12px">
-      <h4>Comment jouer :</h4>
-      <p>Alignez trois symboles pour gagner. En ligne, vous jouez contre de VRAIS adversaires.</p>
-    </div>
-    
-    <div class="morpion-container">
-      <div id="morpion-status" style="font-size:1.1rem;text-align:center;margin:10px 0">Tour du joueur X</div>
-      <div id="morpion-board" class="board"></div>
-      <div id="online-players" style="margin-top:12px;text-align:center;display:none">
-        <div><span class="online-dot"></span> <span id="player-count">1</span>/2 joueur(s) en ligne</div>
-      </div>
-      <div id="morpion-chat" class="chat-container" style="display:none">
-        <div class="chat-messages" id="morpion-chat-messages"></div>
-        <div class="chat-input">
-          <input type="text" id="morpion-chat-input" placeholder="Tapez votre message...">
-          <button id="morpion-chat-send">Envoyer</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- MEMORY -->
-  <div id="memory" class="game-container" aria-hidden="true">
-    <div class="game-header">
-      <button class="back-button" id="memory-back"><i class="fas fa-arrow-left"></i> Retour</button>
-      <div class="game-title">Memory</div>
-      <div class="score-display">Score: <span id="memory-score">0</span></div>
-      <button class="instruction-button" id="memory-info"><i class="fas fa-info-circle"></i> Instructions</button>
-      <button class="reset-button" id="memory-reset"><i class="fas fa-redo"></i> Nouvelle partie</button>
-    </div>
-    <div id="memory-instructions" style="display:none;margin-bottom:12px">
-      <h4>Comment jouer :</h4>
-      <p>Retournez deux cartes pour trouver les paires. Moins de temps = plus de points!</p>
-    </div>
-    <div class="memory-container">
-      <div id="memory-status" style="font-size:1.1rem;text-align:center;margin:10px 0">Trouvez toutes les paires !</div>
-      <div id="memory-board" class="memory-board"></div>
-    </div>
-  </div>
-
-  <!-- SNAKE -->
-  <div id="snake" class="game-container" aria-hidden="true">
-    <div class="game-header">
-      <button class="back-button" id="snake-back"><i class="fas fa-arrow-left"></i> Retour</button>
-      <div class="game-title">Snake</div>
-      <div class="score-display">Score: <span id="snake-score">0</span></div>
-      <button class="instruction-button" id="snake-info"><i class="fas fa-info-circle"></i> Instructions</button>
-      <button class="reset-button" id="snake-reset"><i class="fas fa-redo"></i> Nouvelle partie</button>
-    </div>
-    <div id="snake-instructions" style="display:none;margin-bottom:12px">
-      <h4>Comment jouer :</h4>
-      <p>Touches fléchées ou contrôles tactiles. Évitez les murs et votre queue!</p>
-    </div>
-    <div class="snake-container">
-      <canvas id="snake-canvas" class="snake-canvas" width="400" height="400"></canvas>
-      <div class="snake-controls">
-        <div></div>
-        <button class="up" data-dir="0,-1"><i class="fas fa-arrow-up"></i></button>
-        <div></div>
-        <button class="left" data-dir="-1,0"><i class="fas fa-arrow-left"></i></button>
-        <div></div>
-        <button class="right" data-dir="1,0"><i class="fas fa-arrow-right"></i></button>
-        <div></div>
-        <button class="down" data-dir="0,1"><i class="fas fa-arrow-down"></i></button>
-        <div></div>
-      </div>
-    </div>
-  </div>
-
-</div>
-
-<!-- Modals -->
-<div id="auth-modal" class="modal">
-  <div class="modal-content">
-    <button class="modal-close">&times;</button>
-    <h2 class="modal-title" id="auth-modal-title">Connexion</h2>
-    <div id="auth-form">
-      <div class="form-group">
-        <label for="auth-username">Nom d'utilisateur:</label>
-        <input type="text" id="auth-username" placeholder="Votre nom d'utilisateur">
-      </div>
-      <div class="form-group">
-        <label for="auth-password">Mot de passe:</label>
-        <input type="password" id="auth-password" placeholder="Votre mot de passe">
-      </div>
-      <div class="form-actions">
-        <button class="cta-button" id="auth-submit" style="flex:1">Se connecter</button>
-        <button class="cta-button" id="auth-switch" style="background:var(--gray);color:var(--dark)">Créer un compte</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div id="profile-modal" class="modal">
-  <div class="modal-content">
-    <button class="modal-close">&times;</button>
-    <h2 class="modal-title">Profil Utilisateur</h2>
-    <div class="user-stats">
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;margin-bottom:1.5rem">
-        <div class="stat-card">
-          <div class="stat-value" id="total-games">0</div>
-          <div class="stat-label">Parties jouées</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" id="win-rate">0%</div>
-          <div class="stat-label">Taux de victoire</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" id="total-score">0</div>
-          <div class="stat-label">Score total</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value" id="player-level">1</div>
-          <div class="stat-label">Niveau</div>
-        </div>
-      </div>
-      <button class="cta-button" id="logout-btn" style="width:100%;background:var(--danger)">Déconnexion</button>
-    </div>
-  </div>
-</div>
-
-<div id="tournament-modal" class="modal">
-  <div class="modal-content">
-    <button class="modal-close">&times;</button>
-    <h2 class="modal-title">Créer un Tournoi</h2>
-    <div style="display:flex;flex-direction:column;gap:1rem">
-      <div class="form-group">
-        <label>Nom du tournoi:</label>
-        <input type="text" id="tournament-name" placeholder="Mon super tournoi">
-      </div>
-      <div class="form-group">
-        <label>Jeu:</label>
-        <select id="tournament-game">
-          <option value="morpion">Morpion</option>
-          <option value="memory">Memory</option>
-          <option value="snake">Snake</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Nombre de joueurs:</label>
-        <select id="tournament-players">
-          <option value="4">4</option>
-          <option value="8">8</option>
-          <option value="16">16</option>
-        </select>
-      </div>
-      <button class="cta-button" id="create-tournament-btn">Créer le Tournoi</button>
-    </div>
-  </div>
-</div>
-
-<!-- Toast Notification -->
-<div id="toast" class="toast">
-  <div class="toast-icon"><i class="fas fa-check"></i></div>
-  <div class="toast-message">Action réussie !</div>
-</div>
-
-<script>
-// =========================
-// SERVEUR BACKEND - VRAI MULTIJOUEUR FONCTIONNEL
-// =========================
-class RealGameServer {
-  constructor() {
-    this.socket = null;
-    this.connected = false;
-    this.serverUrl = window.location.origin;
-    this.token = localStorage.getItem('gamehub-token');
-  }
-
-  async connect() {
-    return new Promise((resolve, reject) => {
-      try {
-        this.socket = io(this.serverUrl, {
-          transports: ['websocket', 'polling']
+        // Événements Socket.io
+        socket.on('connect', () => {
+            console.log('Connecté au serveur');
         });
 
-        this.socket.on('connect', () => {
-          this.connected = true;
-          console.log('🔗 Connecté au serveur GameHub - VRAI MULTIJOUEUR ACTIF');
-          this.setupSocketEvents();
-          resolve();
+        socket.on('waiting-for-player', (data) => {
+            showScreen('waiting-screen');
+            document.getElementById('game-status').textContent = data.message;
         });
 
-        this.socket.on('disconnect', () => {
-          this.connected = false;
-          console.log('🔌 Déconnecté du serveur');
+        socket.on('game-start', (data) => {
+            currentGame = data.gameId;
+            showScreen('game-screen');
+            initializeBoard();
+            updatePlayers(data.players);
+            document.getElementById('game-status').textContent = 'Partie commencée!';
         });
 
-        this.socket.on('connect_error', (error) => {
-          console.error('Erreur de connexion:', error);
-          reject(error);
+        socket.on('morpion-update', (data) => {
+            updateBoard(data);
+            updateGameStatus(data);
         });
 
-      } catch (error) {
-        console.error('Erreur d initialisation:', error);
-        reject(error);
-      }
-    });
-  }
-
-  setupSocketEvents() {
-    // Événements de jeu RÉEL multijoueur
-    this.socket.on('player-joined', (data) => {
-      console.log('🎮 Joueur rejoint:', data);
-      this.handlePlayerJoined(data);
-    });
-
-    this.socket.on('game-start', (data) => {
-      console.log('🚀 Début de partie:', data);
-      this.handleGameStart(data);
-    });
-
-    this.socket.on('game-state-update', (data) => {
-      console.log('🔄 Mise à jour état jeu:', data);
-      this.handleGameStateUpdate(data);
-    });
-
-    this.socket.on('game-reset', (data) => {
-      console.log('🔄 Réinitialisation jeu:', data);
-      this.handleGameReset(data);
-    });
-
-    this.socket.on('not-your-turn', (data) => {
-      this.handleNotYourTurn(data);
-    });
-
-    this.socket.on('invalid-move', (data) => {
-      this.handleInvalidMove(data);
-    });
-
-    this.socket.on('invalid-game-state', (data) => {
-      this.handleInvalidGameState(data);
-    });
-
-    this.socket.on('player-left', (data) => {
-      console.log('👋 Joueur parti:', data);
-      this.handlePlayerLeft(data);
-    });
-
-    this.socket.on('chat-message', (data) => {
-      this.handleChatMessage(data);
-    });
-
-    this.socket.on('global-stats-update', (data) => {
-      this.handleGlobalStatsUpdate(data);
-    });
-  }
-
-  // Gestion des événements MULTIJOUEUR
-  handlePlayerJoined(data) {
-    if (window.morpionGame && window.morpionGame.mode === 'online') {
-      document.getElementById('player-count').textContent = data.room.players.length;
-      
-      const user = window.auth.getCurrentUser();
-      const ourPlayer = data.room.players.find(p => p.name === user.username);
-      if (ourPlayer) {
-        window.morpionGame.playerSymbol = ourPlayer.symbol;
-        window.morpionGame.currentPlayer = data.room.currentPlayer;
-        console.log(`🎯 Je suis le joueur ${ourPlayer.symbol} dans la salle ${data.room.id}`);
-      }
-      
-      if (data.room.players.length === 2) {
-        window.store.showToast('🎮 Partie complète! Prêt à jouer contre un VRAI adversaire!', 'success');
-      }
-    }
-  }
-
-  handleGameStart(data) {
-    if (window.morpionGame && window.morpionGame.mode === 'online') {
-      window.morpionGame.handleGameStart(data);
-    }
-  }
-
-  handleGameStateUpdate(data) {
-    console.log('🎯 Mise à jour état reçue:', data);
-    if (window.morpionGame && window.morpionGame.mode === 'online') {
-      window.morpionGame.handleGameStateUpdate(data);
-    }
-  }
-
-  handleGameReset(data) {
-    if (window.morpionGame && window.morpionGame.mode === 'online') {
-      window.morpionGame.handleGameReset(data);
-    }
-  }
-
-  handleNotYourTurn(data) {
-    console.log('⏰ Pas votre tour:', data);
-    window.store.showToast(data.message, 'warning');
-    // Réinitialiser l'affichage du plateau
-    if (window.morpionGame && window.morpionGame.mode === 'online') {
-      window.morpionGame.updateDisplay();
-    }
-  }
-
-  handleInvalidMove(data) {
-    console.log('❌ Mouvement invalide:', data);
-    window.store.showToast(data.message, 'error');
-    // Réinitialiser l'affichage du plateau
-    if (window.morpionGame && window.morpionGame.mode === 'online') {
-      window.morpionGame.updateDisplay();
-    }
-  }
-
-  handleInvalidGameState(data) {
-    console.log('❌ État de jeu invalide:', data);
-    window.store.showToast(data.message, 'error');
-  }
-
-  handlePlayerLeft(data) {
-    if (window.morpionGame && window.morpionGame.mode === 'online') {
-      window.store.showToast(data.message, 'warning');
-      document.getElementById('player-count').textContent = data.players.length;
-      
-      // Si l'adversaire quitte, revenir au menu
-      if (data.players.length === 1) {
-        setTimeout(() => {
-          window.store.showToast('L\'adversaire a quitté. Retour au menu.', 'info');
-          closeGames();
-        }, 2000);
-      }
-    }
-  }
-
-  handleChatMessage(data) {
-    if (window.chatSystem && data.roomId) {
-      window.chatSystem.addMessage(data.roomId, {
-        type: 'player',
-        playerName: data.playerName,
-        message: data.message,
-        timestamp: new Date()
-      });
-    }
-  }
-
-  handleGlobalStatsUpdate(data) {
-    this.updateOnlineDisplays(data);
-  }
-
-  updateOnlineDisplays(stats) {
-    const totalMorpion = stats.games.morpion * 2 + (stats.simulatedPlayers?.morpion || 0);
-    const totalMemory = stats.games.memory * 2 + (stats.simulatedPlayers?.memory || 0);
-    const totalSnake = stats.games.snake * 2 + (stats.simulatedPlayers?.snake || 0);
-    
-    document.getElementById('morpion-players').textContent = totalMorpion;
-    document.getElementById('memory-players').textContent = totalMemory;
-    document.getElementById('snake-players').textContent = totalSnake;
-    
-    document.getElementById('morpion-online').textContent = stats.games.morpion + Math.floor((stats.simulatedPlayers?.morpion || 0) / 4);
-    document.getElementById('memory-online').textContent = stats.games.memory + Math.floor((stats.simulatedPlayers?.memory || 0) / 3);
-    document.getElementById('snake-online').textContent = stats.games.snake + Math.floor((stats.simulatedPlayers?.snake || 0) / 5);
-  }
-
-  // Authentification via API REST
-  async register(userData) {
-    try {
-      const response = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        this.token = data.token;
-        localStorage.setItem('gamehub-token', data.token);
-        localStorage.setItem('gamehub-user', JSON.stringify(data.user));
-        return data.user;
-      } else {
-        throw new Error(data.error);
-      }
-    } catch (error) {
-      throw new Error('Erreur de connexion au serveur');
-    }
-  }
-
-  async login(username, password) {
-    try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        this.token = data.token;
-        localStorage.setItem('gamehub-token', data.token);
-        localStorage.setItem('gamehub-user', JSON.stringify(data.user));
-        return data.user;
-      } else {
-        throw new Error(data.error);
-      }
-    } catch (error) {
-      throw new Error('Erreur de connexion au serveur');
-    }
-  }
-
-  // Gestion des salles
-  async joinRoom(game, playerName, roomId = null) {
-    if (!this.connected) await this.connect();
-
-    return new Promise((resolve, reject) => {
-      this.socket.emit('join-room', { game, playerName, roomId });
-      
-      this.socket.once('player-joined', (data) => {
-        resolve(data.room);
-      });
-
-      this.socket.once('room-full', (data) => {
-        reject(new Error('Salle pleine'));
-      });
-
-      setTimeout(() => reject(new Error('Timeout de connexion')), 5000);
-    });
-  }
-
-  // Communication de jeu
-  sendGameMove(game, move, roomId) {
-    if (this.connected) {
-      console.log(`📤 Envoi mouvement: ${move} dans ${roomId}`);
-      this.socket.emit('game-move', { game, move, roomId });
-    } else {
-      console.error('❌ Non connecté au serveur');
-    }
-  }
-
-  sendChatMessage(message, roomId) {
-    if (this.connected) {
-      this.socket.emit('chat-message', { message, roomId });
-    }
-  }
-
-  // Tournois
-  async createTournament(tournamentData) {
-    if (!this.connected) await this.connect();
-
-    return new Promise((resolve) => {
-      this.socket.emit('create-tournament', tournamentData);
-      this.socket.once('tournament-created', resolve);
-    });
-  }
-
-  async joinTournament(tournamentId, playerName) {
-    if (!this.connected) await this.connect();
-
-    this.socket.emit('join-tournament', { tournamentId, playerName });
-  }
-
-  // API pour les données
-  async getLeaderboard(game = 'all') {
-    try {
-      const response = await fetch(`/api/leaderboard/${game}`);
-      return await response.json();
-    } catch (error) {
-      console.error('Erreur chargement classement:', error);
-      return [];
-    }
-  }
-
-  async getStats() {
-    try {
-      const response = await fetch('/api/stats');
-      return await response.json();
-    } catch (error) {
-      console.error('Erreur chargement stats:', error);
-      return { onlinePlayers: 0, activeRooms: 0, activeTournaments: 0, games: { morpion: 0, memory: 0, snake: 0 } };
-    }
-  }
-
-  async getRooms(game) {
-    try {
-      const response = await fetch(`/api/rooms/${game}`);
-      return await response.json();
-    } catch (error) {
-      console.error('Erreur chargement salles:', error);
-      return [];
-    }
-  }
-}
-
-// =========================
-// SYSTÈME D'AUTHENTIFICATION
-// =========================
-class AuthSystem {
-  constructor() {
-    this.currentUser = null;
-    this.token = localStorage.getItem('gamehub-token');
-    this.userData = JSON.parse(localStorage.getItem('gamehub-user') || 'null');
-    
-    if (this.userData) {
-      this.currentUser = this.userData;
-    }
-  }
-
-  async login(username, password) {
-    try {
-      const user = await window.server.login(username, password);
-      this.currentUser = user;
-      this.token = window.server.token;
-      
-      this.updateUI();
-      window.store.showToast('Connexion réussie!', 'success');
-      return true;
-    } catch (error) {
-      window.store.showToast(error.message, 'error');
-      return false;
-    }
-  }
-
-  async register(userData) {
-    try {
-      const user = await window.server.register(userData);
-      this.currentUser = user;
-      this.token = window.server.token;
-      
-      this.updateUI();
-      window.store.showToast('Compte créé avec succès!', 'success');
-      return true;
-    } catch (error) {
-      window.store.showToast(error.message, 'error');
-      return false;
-    }
-  }
-
-  logout() {
-    this.currentUser = null;
-    this.token = null;
-    localStorage.removeItem('gamehub-token');
-    localStorage.removeItem('gamehub-user');
-    this.updateUI();
-    window.store.showToast('Déconnexion réussie', 'info');
-  }
-
-  isLoggedIn() {
-    return this.currentUser !== null;
-  }
-
-  updateUI() {
-    const userInfo = document.getElementById('user-info');
-    const authBtn = document.getElementById('auth-btn');
-    
-    if (this.isLoggedIn()) {
-      userInfo.style.display = 'flex';
-      document.getElementById('user-name').textContent = this.currentUser.username;
-      document.getElementById('user-avatar').textContent = this.currentUser.username.charAt(0).toUpperCase();
-      authBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i>';
-      authBtn.title = 'Déconnexion';
-    } else {
-      userInfo.style.display = 'none';
-      authBtn.innerHTML = '<i class="fas fa-user"></i>';
-      authBtn.title = 'Connexion';
-    }
-  }
-
-  getCurrentUser() {
-    return this.currentUser;
-  }
-}
-
-// =========================
-// SYSTÈME DE STOCKAGE
-// =========================
-class RealGameStore {
-  constructor() {
-    this.state = {
-      user: null,
-      settings: this.loadSettings(),
-      achievements: this.loadAchievements(),
-      gameStats: this.loadGameStats()
-    };
-  }
-
-  loadSettings() {
-    const saved = localStorage.getItem('gamehub-settings');
-    return saved ? JSON.parse(saved) : {
-      sound: true,
-      dark: false,
-      music: false,
-      notifications: true
-    };
-  }
-
-  loadAchievements() {
-    const saved = localStorage.getItem('gamehub-achievements');
-    const defaultAchievements = [
-      { id: 'first_win', name: 'Première Victoire', description: 'Gagnez votre première partie', icon: '🏆', unlocked: false },
-      { id: 'memory_master', name: 'Maître de la Mémoire', description: 'Terminez le memory en moins de 2 minutes', icon: '🧠', unlocked: false },
-      { id: 'snake_expert', name: 'Expert du Snake', description: 'Atteignez 50 points au snake', icon: '🐍', unlocked: false },
-      { id: 'morpion_champion', name: 'Champion du Morpion', description: 'Gagnez 10 parties de morpion', icon: '❌', unlocked: false },
-      { id: 'level_5', name: 'Niveau 5', description: 'Atteignez le niveau 5', icon: '⭐', unlocked: false },
-      { id: 'online_player', name: 'Joueur En Ligne', description: 'Jouez votre première partie en ligne', icon: '🌐', unlocked: false }
-    ];
-    
-    if (saved) {
-      const savedAchs = JSON.parse(saved);
-      return defaultAchievements.map(ach => {
-        const savedAch = savedAchs.find(s => s.id === ach.id);
-        return savedAch ? { ...ach, unlocked: savedAch.unlocked } : ach;
-      });
-    }
-    
-    return defaultAchievements;
-  }
-
-  loadGameStats() {
-    const saved = localStorage.getItem('gamehub-stats');
-    return saved ? JSON.parse(saved) : {
-      morpion: { wins: 0, losses: 0, score: 0 },
-      memory: { wins: 0, losses: 0, score: 0, bestTime: null },
-      snake: { wins: 0, losses: 0, score: 0, bestScore: 0 }
-    };
-  }
-
-  saveSettings() {
-    localStorage.setItem('gamehub-settings', JSON.stringify(this.state.settings));
-  }
-
-  saveAchievements() {
-    localStorage.setItem('gamehub-achievements', JSON.stringify(this.state.achievements));
-  }
-
-  saveGameStats() {
-    localStorage.setItem('gamehub-stats', JSON.stringify(this.state.gameStats));
-  }
-
-  async updateUserStats(gameResult) {
-    if (!window.auth.isLoggedIn()) return;
-
-    this.state.gameStats[gameResult.game].wins += gameResult.won ? 1 : 0;
-    this.state.gameStats[gameResult.game].losses += gameResult.won ? 0 : 1;
-    this.state.gameStats[gameResult.game].score += gameResult.score || 0;
-    
-    this.saveGameStats();
-    this.checkAchievements(gameResult);
-  }
-
-  checkAchievements(gameResult) {
-    let unlockedAny = false;
-
-    if (gameResult.won && this.state.gameStats[gameResult.game].wins === 1) {
-      this.unlockAchievement('first_win');
-      unlockedAny = true;
-    }
-
-    const totalScore = Object.values(this.state.gameStats).reduce((acc, stats) => acc + stats.score, 0);
-    if (totalScore >= 500) {
-      this.unlockAchievement('level_5');
-      unlockedAny = true;
-    }
-
-    if (gameResult.online) {
-      this.unlockAchievement('online_player');
-      unlockedAny = true;
-    }
-
-    if (unlockedAny) {
-      this.saveAchievements();
-    }
-  }
-
-  unlockAchievement(achievementId) {
-    const achievement = this.state.achievements.find(a => a.id === achievementId);
-    if (achievement && !achievement.unlocked) {
-      achievement.unlocked = true;
-      this.showToast(`Succès débloqué: ${achievement.name}`, 'success');
-      return true;
-    }
-    return false;
-  }
-
-  showToast(message, type = 'success') {
-    const toast = document.getElementById('toast');
-    toast.querySelector('.toast-message').textContent = message;
-    toast.className = `toast ${type} show`;
-    
-    setTimeout(() => {
-      toast.classList.remove('show');
-    }, 3000);
-  }
-}
-
-// =========================
-// IA AVANCÉE POUR MORPION
-// =========================
-class AdvancedMorpionAI {
-  constructor(difficulty = 'medium') {
-    this.difficulty = difficulty;
-  }
-
-  getMove(board, player = 'O') {
-    switch(this.difficulty) {
-      case 'easy':
-        return this.getEasyMove(board);
-      case 'medium':
-        return this.getMediumMove(board, player);
-      case 'hard':
-        return this.getBestMove(board, player);
-      default:
-        return this.getEasyMove(board);
-    }
-  }
-
-  getBestMove(board, player) {
-    let bestScore = -Infinity;
-    let bestMove = null;
-
-    for (let i = 0; i < 9; i++) {
-      if (board[i] === '') {
-        board[i] = player;
-        const score = this.minimax(board, 0, false, player);
-        board[i] = '';
-
-        if (score > bestScore) {
-          bestScore = score;
-          bestMove = i;
-        }
-      }
-    }
-
-    return bestMove;
-  }
-
-  minimax(board, depth, isMaximizing, player) {
-    const opponent = player === 'X' ? 'O' : 'X';
-    const winner = this.checkWinner(board);
-
-    if (winner === player) return 10 - depth;
-    if (winner === opponent) return depth - 10;
-    if (this.isBoardFull(board)) return 0;
-
-    if (isMaximizing) {
-      let bestScore = -Infinity;
-      for (let i = 0; i < 9; i++) {
-        if (board[i] === '') {
-          board[i] = player;
-          const score = this.minimax(board, depth + 1, false, player);
-          board[i] = '';
-          bestScore = Math.max(score, bestScore);
-        }
-      }
-      return bestScore;
-    } else {
-      let bestScore = Infinity;
-      for (let i = 0; i < 9; i++) {
-        if (board[i] === '') {
-          board[i] = opponent;
-          const score = this.minimax(board, depth + 1, true, player);
-          board[i] = '';
-          bestScore = Math.min(score, bestScore);
-        }
-      }
-      return bestScore;
-    }
-  }
-
-  getMediumMove(board, player) {
-    const opponent = player === 'X' ? 'O' : 'X';
-    
-    // Essayer de gagner
-    for (let i = 0; i < 9; i++) {
-      if (board[i] === '') {
-        board[i] = player;
-        if (this.checkWinner(board) === player) {
-          board[i] = '';
-          return i;
-        }
-        board[i] = '';
-      }
-    }
-
-    // Bloquer l'adversaire
-    for (let i = 0; i < 9; i++) {
-      if (board[i] === '') {
-        board[i] = opponent;
-        if (this.checkWinner(board) === opponent) {
-          board[i] = '';
-          return i;
-        }
-        board[i] = '';
-      }
-    }
-
-    // Prendre le centre si disponible
-    if (board[4] === '') return 4;
-
-    // Prendre les coins
-    const corners = [0, 2, 6, 8];
-    const availableCorners = corners.filter(i => board[i] === '');
-    if (availableCorners.length > 0) {
-      return availableCorners[Math.floor(Math.random() * availableCorners.length)];
-    }
-
-    // Sinon mouvement aléatoire
-    return this.getEasyMove(board);
-  }
-
-  getEasyMove(board) {
-    const availableMoves = board
-      .map((cell, index) => cell === '' ? index : null)
-      .filter(index => index !== null);
-    
-    return availableMoves[Math.floor(Math.random() * availableMoves.length)];
-  }
-
-  checkWinner(board) {
-    const lines = [
-      [0,1,2],[3,4,5],[6,7,8],
-      [0,3,6],[1,4,7],[2,5,8],
-      [0,4,8],[2,4,6]
-    ];
-
-    for (const [a,b,c] of lines) {
-      if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-        return board[a];
-      }
-    }
-
-    return null;
-  }
-
-  isBoardFull(board) {
-    return board.every(cell => cell !== '');
-  }
-}
-
-// =========================
-// SYSTÈME DE TOURNOIS
-// =========================
-class TournamentSystem {
-  constructor(server) {
-    this.server = server;
-    this.activeTournaments = new Map();
-  }
-
-  async createTournament(tournamentData) {
-    try {
-      const tournament = await this.server.createTournament(tournamentData);
-      this.activeTournaments.set(tournament.id, tournament);
-      this.updateTournamentsDisplay();
-      window.store.showToast('Tournoi créé avec succès!', 'success');
-      return tournament;
-    } catch (error) {
-      window.store.showToast('Erreur lors de la création du tournoi', 'error');
-      console.error('Tournament creation error:', error);
-    }
-  }
-
-  async joinTournament(tournamentId, playerName) {
-    const tournament = this.activeTournaments.get(tournamentId);
-    if (tournament && tournament.status === 'registration') {
-      await this.server.joinTournament(tournamentId, playerName);
-    }
-  }
-
-  updateTournament(tournamentData) {
-    this.activeTournaments.set(tournamentData.id, tournamentData);
-    this.updateTournamentsDisplay();
-  }
-
-  updateTournamentsDisplay() {
-    const container = document.getElementById('tournaments-list');
-    if (!container) return;
-
-    container.innerHTML = '';
-
-    this.activeTournaments.forEach(tournament => {
-      const card = document.createElement('div');
-      card.className = 'tournament-card';
-      
-      card.innerHTML = `
-        <div class="tournament-header">
-          <div class="tournament-name">${tournament.name}</div>
-          <div class="tournament-status ${tournament.status}">${this.getStatusText(tournament.status)}</div>
-        </div>
-        <div class="tournament-info">
-          <div class="tournament-stat">
-            <div class="tournament-stat-value">${tournament.game}</div>
-            <div class="tournament-stat-label">Jeu</div>
-          </div>
-          <div class="tournament-stat">
-            <div class="tournament-stat-value">${tournament.participants ? tournament.participants.length : 0}/${tournament.maxPlayers}</div>
-            <div class="tournament-stat-label">Joueurs</div>
-          </div>
-          <div class="tournament-stat">
-            <div class="tournament-stat-value">${this.getPrize(tournament.maxPlayers)}</div>
-            <div class="tournament-stat-label">Récompense</div>
-          </div>
-        </div>
-        <button class="cta-button join-tournament" data-id="${tournament.id}" style="width:100%;padding:8px">
-          ${tournament.status === 'registration' ? 'Rejoindre' : 'Voir le bracket'}
-        </button>
-      `;
-
-      container.appendChild(card);
-    });
-
-    document.querySelectorAll('.join-tournament').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const tournamentId = e.target.dataset.id;
-        const user = window.auth.getCurrentUser();
-        if (user) {
-          this.joinTournament(tournamentId, user.username);
-        } else {
-          window.store.showToast('Connectez-vous pour rejoindre un tournoi', 'warning');
-        }
-      });
-    });
-  }
-
-  getStatusText(status) {
-    const statusMap = {
-      'registration': 'Inscriptions',
-      'active': 'En Cours',
-      'finished': 'Terminé'
-    };
-    return statusMap[status] || status;
-  }
-
-  getPrize(playerCount) {
-    const prizes = {
-      4: '1000 pts',
-      8: '2500 pts',
-      16: '5000 pts'
-    };
-    return prizes[playerCount] || '0 pts';
-  }
-}
-
-// =========================
-// SYSTÈME DE CHAT
-// =========================
-class ChatSystem {
-  constructor() {
-    this.messages = new Map();
-  }
-
-  joinRoom(roomId, playerName) {
-    if (!this.messages.has(roomId)) {
-      this.messages.set(roomId, []);
-    }
-    
-    this.addSystemMessage(roomId, `${playerName} a rejoint la partie`);
-  }
-
-  addSystemMessage(roomId, message) {
-    this.addMessage(roomId, {
-      type: 'system',
-      message,
-      timestamp: new Date()
-    });
-  }
-
-  addPlayerMessage(roomId, playerName, message) {
-    this.addMessage(roomId, {
-      type: 'player',
-      playerName,
-      message,
-      timestamp: new Date()
-    });
-  }
-
-  addMessage(roomId, messageData) {
-    const roomMessages = this.messages.get(roomId) || [];
-    roomMessages.push(messageData);
-    
-    if (roomMessages.length > 50) {
-      roomMessages.splice(0, roomMessages.length - 50);
-    }
-    
-    this.messages.set(roomId, roomMessages);
-    this.updateChatDisplay(roomId);
-  }
-
-  updateChatDisplay(roomId) {
-    const chatMessages = document.getElementById('morpion-chat-messages');
-    if (!chatMessages) return;
-
-    const messages = this.messages.get(roomId) || [];
-    chatMessages.innerHTML = '';
-
-    messages.forEach(msg => {
-      const messageDiv = document.createElement('div');
-      messageDiv.className = 'chat-message';
-      
-      if (msg.type === 'system') {
-        messageDiv.innerHTML = `<em>${msg.message}</em>`;
-        messageDiv.style.fontStyle = 'italic';
-        messageDiv.style.color = 'var(--dark-gray)';
-      } else {
-        messageDiv.innerHTML = `<strong>${msg.playerName}:</strong> ${msg.message}`;
-      }
-      
-      chatMessages.appendChild(messageDiv);
-    });
-
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-  }
-}
-
-// =========================
-// JEUX AVEC VRAI MULTIJOUEUR FONCTIONNEL
-// =========================
-
-// Morpion avec VRAI multijoueur FONCTIONNEL
-let morpionGame = {
-  board: [],
-  currentPlayer: 'X',
-  gameActive: false,
-  mode: 'robot-easy',
-  ai: null,
-  score: 0,
-  roomId: null,
-  playerSymbol: 'X',
-
-  init() {
-    this.board = Array(9).fill('');
-    this.currentPlayer = 'X';
-    this.gameActive = true;
-    this.ai = new AdvancedMorpionAI(this.mode.replace('robot-', ''));
-    
-    this.updateDisplay();
-    this.updateStatus();
-  },
-
-  makeMove(position) {
-    console.log(`🎮 Tentative de mouvement: position ${position}, mode ${this.mode}, jeu actif: ${this.gameActive}`);
-    
-    if (!this.gameActive) {
-      console.log('❌ Jeu non actif');
-      window.store.showToast("La partie n'est pas active", 'warning');
-      return false;
-    }
-
-    if (this.board[position] !== '') {
-      console.log('❌ Case déjà occupée');
-      window.store.showToast("Case déjà occupée", 'warning');
-      return false;
-    }
-
-    // En mode en ligne, envoyer le mouvement au serveur
-    if (this.mode === 'online' && this.roomId) {
-      console.log(`📤 Envoi mouvement au serveur: position ${position}, salle ${this.roomId}`);
-      
-      // Vérifier que c'est notre tour
-      const isOurTurn = (this.currentPlayer === this.playerSymbol);
-      console.log(`🔍 Vérification tour: currentPlayer=${this.currentPlayer}, playerSymbol=${this.playerSymbol}, isOurTurn=${isOurTurn}`);
-      
-      if (!isOurTurn) {
-        window.store.showToast("⏳ En attente de l'adversaire...", 'info');
-        return false;
-      }
-
-      window.server.sendGameMove('morpion', position, this.roomId);
-      
-      // NE PAS mettre à jour le plateau localement - attendre la confirmation du serveur
-      // Cela évite les désynchronisations
-      return true;
-    }
-
-    // Mode solo contre IA
-    console.log('🤖 Mode solo contre IA');
-    this.board[position] = this.currentPlayer;
-    this.updateDisplay();
-
-    const winner = this.checkWinner();
-    if (winner) {
-      this.handleGameEnd(winner);
-      return true;
-    }
-
-    if (this.isBoardFull()) {
-      this.handleGameEnd(null);
-      return true;
-    }
-
-    this.switchPlayer();
-    this.updateStatus();
-
-    // Tour de l'IA
-    if (this.mode.startsWith('robot') && this.currentPlayer === 'O') {
-      setTimeout(() => {
-        const aiMove = this.ai.getMove([...this.board], 'O');
-        this.makeMove(aiMove);
-      }, 500);
-    }
-
-    return true;
-  },
-
-  handleGameStateUpdate(data) {
-    console.log('🔄 Mise à jour état jeu reçue:', data);
-    
-    // Synchroniser avec l'état du serveur
-    this.board = data.board;
-    this.currentPlayer = data.currentPlayer;
-    this.gameActive = !data.gameOver;
-    
-    this.updateDisplay();
-    this.updateStatus(data.winner);
-
-    if (data.gameOver) {
-      this.handleGameEnd(data.winner);
-    }
-  },
-
-  handleGameStart(data) {
-    this.gameActive = true;
-    this.currentPlayer = data.currentPlayer;
-    
-    // Mettre à jour l'affichage des joueurs
-    document.getElementById('player-count').textContent = data.players.length;
-    
-    // Trouver notre joueur
-    const user = window.auth.getCurrentUser();
-    const ourPlayer = data.players.find(p => p.name === user.username);
-    if (ourPlayer) {
-      this.playerSymbol = ourPlayer.symbol;
-      console.log(`🎯 Je suis le joueur: ${this.playerSymbol}`);
-    }
-    
-    this.updateStatus();
-    window.store.showToast('🎮 Partie commencée contre un VRAI adversaire!', 'success');
-  },
-
-  handleGameReset(data) {
-    this.board = data.board;
-    this.currentPlayer = data.currentPlayer;
-    this.gameActive = true;
-    
-    this.updateDisplay();
-    this.updateStatus();
-    
-    window.store.showToast('🔄 Nouvelle partie! Prêt à jouer!', 'info');
-  },
-
-  checkWinner() {
-    const lines = [
-      [0,1,2],[3,4,5],[6,7,8],
-      [0,3,6],[1,4,7],[2,5,8],
-      [0,4,8],[2,4,6]
-    ];
-
-    for (const line of lines) {
-      const [a,b,c] = line;
-      if (this.board[a] && this.board[a] === this.board[b] && this.board[a] === this.board[c]) {
-        return this.board[a];
-      }
-    }
-    return null;
-  },
-
-  isBoardFull() {
-    return this.board.every(cell => cell !== '');
-  },
-
-  switchPlayer() {
-    this.currentPlayer = this.currentPlayer === 'X' ? 'O' : 'X';
-  },
-
-  handleGameEnd(winner) {
-    this.gameActive = false;
-    
-    if (winner) {
-      this.highlightWinningCells(winner);
-      if (winner === this.playerSymbol) {
-        this.score += 10;
-        window.store.updateUserStats({
-          game: 'morpion',
-          won: true,
-          score: 10,
-          experience: 15,
-          online: this.mode === 'online'
+        socket.on('morpion-reset', (data) => {
+            resetBoard(data);
         });
-      }
-    } else {
-      window.store.updateUserStats({
-        game: 'morpion',
-        won: false,
-        score: 5,
-        experience: 5,
-        online: this.mode === 'online'
-      });
-    }
 
-    this.updateStatus(winner);
-    this.updateScoreDisplay();
-  },
-
-  highlightWinningCells(winner) {
-    const lines = [
-      [0,1,2],[3,4,5],[6,7,8],
-      [0,3,6],[1,4,7],[2,5,8],
-      [0,4,8],[2,4,6]
-    ];
-
-    for (const line of lines) {
-      const [a,b,c] = line;
-      if (this.board[a] && this.board[a] === this.board[b] && this.board[a] === this.board[c]) {
-        line.forEach(index => {
-          const cell = document.querySelectorAll('#morpion-board .cell')[index];
-          cell.classList.add('win');
+        socket.on('game-chat', (data) => {
+            addChatMessage(data.playerName, data.message);
         });
-        break;
-      }
-    }
-  },
 
-  updateDisplay() {
-    const boardElement = document.getElementById('morpion-board');
-    if (!boardElement) return;
+        socket.on('player-left', (data) => {
+            alert(data.message);
+            showScreen('home-screen');
+            currentGame = null;
+        });
 
-    boardElement.innerHTML = '';
-    this.board.forEach((cell, index) => {
-      const cellElement = document.createElement('div');
-      cellElement.className = `cell ${cell.toLowerCase()}`;
-      cellElement.textContent = cell;
-      cellElement.addEventListener('click', () => this.handleCellClick(index));
-      boardElement.appendChild(cellElement);
-    });
-  },
+        socket.on('error', (data) => {
+            alert('Erreur: ' + data.message);
+        });
 
-  handleCellClick(position) {
-    if (!this.gameActive) return;
-    
-    if (this.mode === 'online') {
-      // En ligne : vérifier que c'est notre tour
-      const isOurTurn = (this.currentPlayer === this.playerSymbol);
-      
-      if (!isOurTurn) {
-        window.store.showToast("⏳ En attente de l'adversaire...", 'info');
-        return;
-      }
-    }
-
-    this.makeMove(position);
-  },
-
-  updateStatus(winner = null) {
-    const statusElement = document.getElementById('morpion-status');
-    if (!statusElement) return;
-
-    if (winner) {
-      const isOurWin = (winner === this.playerSymbol);
-      statusElement.textContent = isOurWin ? '🎉 Vous avez gagné !' : '💥 L\'adversaire a gagné !';
-      statusElement.style.color = isOurWin ? 'var(--success)' : 'var(--danger)';
-    } else if (winner === null && !this.gameActive) {
-      statusElement.textContent = '🤝 Match nul !';
-      statusElement.style.color = 'var(--warning)';
-    } else {
-      if (this.mode === 'online') {
-        const isOurTurn = (this.currentPlayer === this.playerSymbol);
-        statusElement.textContent = isOurTurn ? '✅ Votre tour' : '⏳ Tour de l\'adversaire';
-        statusElement.style.color = isOurTurn ? 'var(--success)' : 'var(--warning)';
-      } else {
-        statusElement.textContent = this.currentPlayer === 'X' ? 'Votre tour' : 'Tour de l\'IA';
-        statusElement.style.color = 'var(--primary)';
-      }
-    }
-  },
-
-  updateScoreDisplay() {
-    const scoreElement = document.getElementById('morpion-score');
-    if (scoreElement) {
-      scoreElement.textContent = this.score;
-    }
-  },
-
-  async setMode(mode, specificRoomId = null) {
-    this.mode = mode;
-    
-    if (this.mode === 'online') {
-      document.getElementById('morpion-chat').style.display = 'block';
-      document.getElementById('online-players').style.display = 'block';
-      
-      const user = window.auth.getCurrentUser();
-      if (user) {
-        try {
-          // Utiliser l'ID de salle spécifique si fourni
-          this.roomId = await window.server.joinRoom('morpion', user.username, specificRoomId);
-          window.chatSystem.joinRoom(this.roomId, user.username);
-          
-        } catch (error) {
-          window.store.showToast('Erreur de connexion: ' + error.message, 'error');
-          this.mode = 'robot-easy';
+        // Fonctions du jeu
+        function joinGame() {
+            playerName = document.getElementById('playerName').value.trim();
+            if (!playerName) {
+                alert('Veuillez entrer un pseudo');
+                return;
+            }
+            
+            socket.emit('join-morpion', { playerName });
+            showScreen('waiting-screen');
         }
-      } else {
-        window.store.showToast('Connectez-vous pour jouer en ligne', 'warning');
-        this.mode = 'robot-easy';
-      }
-    } else {
-      document.getElementById('morpion-chat').style.display = 'none';
-      document.getElementById('online-players').style.display = 'none';
-      this.roomId = null;
-    }
-    
-    this.init();
-  }
-};
 
-// Memory Game (reste identique)
-let memoryGame = {
-  cards: [],
-  flippedCards: [],
-  matchedPairs: 0,
-  score: 0,
-  startTime: null,
-
-  init() {
-    const icons = ['🎮','🎲','🎯','🎪','🎨','🎭','🎺','🎸'];
-    this.cards = [...icons, ...icons];
-    this.shuffleCards();
-    this.flippedCards = [];
-    this.matchedPairs = 0;
-    this.score = window.store.state.gameStats.memory.score;
-    this.startTime = Date.now();
-    
-    this.renderBoard();
-    this.updateStatus();
-  },
-
-  shuffleCards() {
-    for (let i = this.cards.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [this.cards[i], this.cards[j]] = [this.cards[j], this.cards[i]];
-    }
-  },
-
-  renderBoard() {
-    const board = document.getElementById('memory-board');
-    if (!board) return;
-
-    board.innerHTML = '';
-    this.cards.forEach((icon, index) => {
-      const card = document.createElement('div');
-      card.className = 'memory-card';
-      card.dataset.index = index;
-      card.addEventListener('click', () => this.flipCard(index));
-      board.appendChild(card);
-    });
-  },
-
-  flipCard(index) {
-    if (this.flippedCards.length >= 2 || this.flippedCards.includes(index)) return;
-
-    const card = document.querySelectorAll('.memory-card')[index];
-    card.classList.add('flipped');
-    card.textContent = this.cards[index];
-    this.flippedCards.push(index);
-
-    if (this.flippedCards.length === 2) {
-      setTimeout(() => this.checkMatch(), 600);
-    }
-  },
-
-  checkMatch() {
-    const [index1, index2] = this.flippedCards;
-    
-    if (this.cards[index1] === this.cards[index2]) {
-      this.flippedCards.forEach(index => {
-        const card = document.querySelectorAll('.memory-card')[index];
-        card.classList.add('matched');
-      });
-      
-      this.matchedPairs++;
-      this.updateScore();
-      
-      if (this.matchedPairs === this.cards.length / 2) {
-        this.handleGameEnd(true);
-      }
-    } else {
-      this.flippedCards.forEach(index => {
-        const card = document.querySelectorAll('.memory-card')[index];
-        card.classList.remove('flipped');
-        card.textContent = '';
-      });
-    }
-    
-    this.flippedCards = [];
-  },
-
-  updateScore() {
-    const timeBonus = Math.max(300 - (Date.now() - this.startTime) / 1000, 50);
-    this.score += Math.floor(timeBonus);
-    this.updateScoreDisplay();
-  },
-
-  handleGameEnd(won) {
-    const finalTime = (Date.now() - this.startTime) / 1000;
-    
-    window.store.updateUserStats({
-      game: 'memory',
-      won,
-      score: this.score - window.store.state.gameStats.memory.score,
-      experience: won ? 20 : 10,
-      bestTime: won ? finalTime : null
-    });
-
-    if (won && finalTime < 120) {
-      window.store.unlockAchievement('memory_master');
-    }
-
-    this.updateStatus(won);
-  },
-
-  updateStatus(won = null) {
-    const status = document.getElementById('memory-status');
-    if (!status) return;
-
-    if (won === true) {
-      status.textContent = 'Victoire ! 🎉';
-    } else if (won === false) {
-      status.textContent = 'Partie terminée';
-    } else {
-      status.textContent = `Paires trouvées: ${this.matchedPairs}/${this.cards.length / 2}`;
-    }
-  },
-
-  updateScoreDisplay() {
-    const scoreElement = document.getElementById('memory-score');
-    if (scoreElement) {
-      scoreElement.textContent = this.score;
-    }
-  }
-};
-
-// Snake Game (reste identique)
-let snakeGame = {
-  snake: [],
-  food: {},
-  direction: { x: 1, y: 0 },
-  gameLoop: null,
-  score: 0,
-  gridSize: 20,
-
-  init() {
-    this.snake = [{ x: 10, y: 10 }];
-    this.generateFood();
-    this.direction = { x: 1, y: 0 };
-    this.score = window.store.state.gameStats.snake.score;
-    
-    if (this.gameLoop) clearInterval(this.gameLoop);
-    this.gameLoop = setInterval(() => this.update(), 120);
-    
-    this.draw();
-    this.updateScoreDisplay();
-  },
-
-  generateFood() {
-    let newFood;
-    do {
-      newFood = {
-        x: Math.floor(Math.random() * this.gridSize),
-        y: Math.floor(Math.random() * this.gridSize)
-      };
-    } while (this.snake.some(segment => segment.x === newFood.x && segment.y === newFood.y));
-    
-    this.food = newFood;
-  },
-
-  update() {
-    const head = { ...this.snake[0] };
-    head.x += this.direction.x;
-    head.y += this.direction.y;
-
-    if (head.x < 0 || head.x >= this.gridSize || head.y < 0 || head.y >= this.gridSize ||
-        this.snake.some(segment => segment.x === head.x && segment.y === head.y)) {
-      this.handleGameEnd();
-      return;
-    }
-
-    this.snake.unshift(head);
-
-    if (head.x === this.food.x && head.y === this.food.y) {
-      this.score++;
-      this.generateFood();
-      this.updateScoreDisplay();
-    } else {
-      this.snake.pop();
-    }
-
-    this.draw();
-  },
-
-  draw() {
-    const canvas = document.getElementById('snake-canvas');
-    const ctx = canvas.getContext('2d');
-    const cellSize = canvas.width / this.gridSize;
-
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--light') || '#fff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--success') || '#32c766';
-    this.snake.forEach(segment => {
-      ctx.fillRect(segment.x * cellSize + 1, segment.y * cellSize + 1, cellSize - 2, cellSize - 2);
-    });
-
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--danger') || '#ff5252';
-    ctx.fillRect(this.food.x * cellSize + 1, this.food.y * cellSize + 1, cellSize - 2, cellSize - 2);
-  },
-
-  changeDirection(newDirection) {
-    if (this.direction.x === -newDirection.x && this.direction.y === -newDirection.y) return;
-    this.direction = newDirection;
-  },
-
-  handleGameEnd() {
-    clearInterval(this.gameLoop);
-    
-    const won = this.score > window.store.state.gameStats.snake.bestScore;
-    
-    window.store.updateUserStats({
-      game: 'snake',
-      won,
-      score: this.score - window.store.state.gameStats.snake.score,
-      experience: Math.floor(this.score / 2),
-      bestScore: this.score
-    });
-
-    if (this.score >= 50) {
-      window.store.unlockAchievement('snake_expert');
-    }
-
-    setTimeout(() => {
-      alert(`Game Over! Score: ${this.score}`);
-    }, 100);
-  },
-
-  updateScoreDisplay() {
-    const scoreElement = document.getElementById('snake-score');
-    if (scoreElement) {
-      scoreElement.textContent = this.score;
-    }
-  }
-};
-
-// =========================
-// INITIALISATION GLOBALE
-// =========================
-let server, auth, store, tournamentSystem, chatSystem;
-
-document.addEventListener('DOMContentLoaded', () => {
-  initializeApp();
-});
-
-async function initializeApp() {
-  try {
-    server = new RealGameServer();
-    auth = new AuthSystem();
-    store = new RealGameStore();
-    tournamentSystem = new TournamentSystem(server);
-    chatSystem = new ChatSystem();
-
-    window.server = server;
-    window.auth = auth;
-    window.store = store;
-    window.tournamentSystem = tournamentSystem;
-    window.chatSystem = chatSystem;
-    window.morpionGame = morpionGame;
-    window.memoryGame = memoryGame;
-    window.snakeGame = snakeGame;
-
-    applySettings();
-    setupEventListeners();
-    await loadInitialData();
-    startRealTimeUpdates();
-
-    console.log('🎮 GameHub VRAI MULTIJOUEUR FONCTIONNEL initialisé avec succès!');
-
-  } catch (error) {
-    console.error('Erreur d initialisation:', error);
-    store.showToast('Erreur lors du chargement de l application', 'error');
-  }
-}
-
-function applySettings() {
-  document.body.classList.toggle('dark-mode', store.state.settings.dark);
-  document.getElementById('theme-toggle').innerHTML = store.state.settings.dark ? 
-    '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
-
-  document.getElementById('sound-toggle').innerHTML = store.state.settings.sound ? 
-    '<i class="fas fa-volume-up"></i>' : '<i class="fas fa-volume-mute"></i>';
-
-  auth.updateUI();
-}
-
-function setupEventListeners() {
-  document.querySelectorAll('.nav-tab').forEach(tab => {
-    tab.addEventListener('click', () => switchTab(tab.dataset.tab));
-  });
-
-  document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
-  document.getElementById('sound-toggle').addEventListener('click', toggleSound);
-  document.getElementById('auth-btn').addEventListener('click', handleAuthButton);
-  document.getElementById('logo').addEventListener('click', () => switchTab('home'));
-
-  document.getElementById('start-btn').addEventListener('click', () => switchTab('games'));
-  document.getElementById('create-tournament').addEventListener('click', openTournamentModal);
-
-  document.querySelectorAll('.game-card[data-game]').forEach(card => {
-    card.addEventListener('click', () => openGame(card.dataset.game));
-  });
-
-  document.querySelectorAll('.join-room').forEach(btn => {
-    btn.addEventListener('click', function() {
-      const game = this.dataset.game;
-      joinMultiplayerRoom(game);
-    });
-  });
-
-  document.getElementById('morpion-back').addEventListener('click', closeGames);
-  document.getElementById('morpion-reset').addEventListener('click', () => morpionGame.init());
-  document.getElementById('morpion-info').addEventListener('click', () => toggleInstructions('morpion'));
-  document.querySelectorAll('#morpion .mode-button').forEach(btn => {
-    btn.addEventListener('click', function() {
-      document.querySelectorAll('#morpion .mode-button').forEach(b => b.classList.remove('active'));
-      this.classList.add('active');
-      morpionGame.setMode(this.dataset.mode);
-    });
-  });
-  document.getElementById('morpion-chat-send').addEventListener('click', sendChatMessage);
-  document.getElementById('morpion-chat-input').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendChatMessage();
-  });
-
-  document.getElementById('memory-back').addEventListener('click', closeGames);
-  document.getElementById('memory-reset').addEventListener('click', () => memoryGame.init());
-  document.getElementById('memory-info').addEventListener('click', () => toggleInstructions('memory'));
-
-  document.getElementById('snake-back').addEventListener('click', closeGames);
-  document.getElementById('snake-reset').addEventListener('click', () => snakeGame.init());
-  document.getElementById('snake-info').addEventListener('click', () => toggleInstructions('snake'));
-  
-  document.querySelectorAll('.snake-controls button[data-dir]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const [x, y] = btn.dataset.dir.split(',').map(Number);
-      snakeGame.changeDirection({ x, y });
-    });
-  });
-
-  document.addEventListener('keydown', (e) => {
-    if (!document.getElementById('snake').classList.contains('active')) return;
-    
-    switch(e.key) {
-      case 'ArrowUp': snakeGame.changeDirection({ x: 0, y: -1 }); break;
-      case 'ArrowDown': snakeGame.changeDirection({ x: 0, y: 1 }); break;
-      case 'ArrowLeft': snakeGame.changeDirection({ x: -1, y: 0 }); break;
-      case 'ArrowRight': snakeGame.changeDirection({ x: 1, y: 0 }); break;
-    }
-  });
-
-  document.querySelectorAll('.modal-close').forEach(btn => {
-    btn.addEventListener('click', () => {
-      btn.closest('.modal').classList.remove('active');
-    });
-  });
-
-  document.getElementById('auth-submit').addEventListener('click', handleAuthSubmit);
-  document.getElementById('auth-switch').addEventListener('click', toggleAuthMode);
-  document.getElementById('logout-btn').addEventListener('click', () => auth.logout());
-
-  document.getElementById('create-tournament-btn').addEventListener('click', createTournament);
-
-  document.querySelectorAll('.filter-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-      this.classList.add('active');
-      loadLeaderboard(this.dataset.filter);
-    });
-  });
-
-  setupTouchControls();
-}
-
-function setupTouchControls() {
-  const canvas = document.getElementById('snake-canvas');
-  if (!canvas) return;
-
-  let touchStartX = 0;
-  let touchStartY = 0;
-
-  canvas.addEventListener('touchstart', (e) => {
-    touchStartX = e.touches[0].clientX;
-    touchStartY = e.touches[0].clientY;
-    e.preventDefault();
-  });
-
-  canvas.addEventListener('touchmove', (e) => {
-    if (!touchStartX || !touchStartY) return;
-
-    const touchEndX = e.touches[0].clientX;
-    const touchEndY = e.touches[0].clientY;
-
-    const dx = touchEndX - touchStartX;
-    const dy = touchEndY - touchStartY;
-
-    if (Math.abs(dx) > Math.abs(dy)) {
-      snakeGame.changeDirection({ x: dx > 0 ? 1 : -1, y: 0 });
-    } else {
-      snakeGame.changeDirection({ x: 0, y: dy > 0 ? 1 : -1 });
-    }
-
-    touchStartX = null;
-    touchStartY = null;
-    e.preventDefault();
-  });
-}
-
-async function loadInitialData() {
-  auth.updateUI();
-  await loadLeaderboard();
-  loadAchievements();
-  tournamentSystem.updateTournamentsDisplay();
-  
-  try {
-    const stats = await server.getStats();
-    server.updateOnlineDisplays(stats);
-  } catch (error) {
-    console.error('Erreur chargement stats:', error);
-  }
-}
-
-function startRealTimeUpdates() {
-  setInterval(async () => {
-    try {
-      const stats = await server.getStats();
-      server.updateOnlineDisplays(stats);
-    } catch (error) {
-      console.error('Erreur mise à jour stats:', error);
-    }
-  }, 10000);
-  
-  setInterval(() => loadLeaderboard(), 30000);
-}
-
-// =========================
-// FONCTIONS D'INTERFACE
-// =========================
-function switchTab(tabName) {
-  document.querySelectorAll('.nav-tab').forEach(tab => {
-    tab.classList.toggle('active', tab.dataset.tab === tabName);
-  });
-
-  document.querySelectorAll('.section').forEach(section => {
-    section.classList.toggle('active', section.id === tabName);
-  });
-}
-
-function openGame(gameId) {
-  if (!auth.isLoggedIn() && gameId !== 'morpion') {
-    store.showToast('Connectez-vous pour jouer', 'warning');
-    openAuthModal();
-    return;
-  }
-
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.game-container').forEach(g => g.classList.remove('active'));
-
-  const gameElement = document.getElementById(gameId);
-  gameElement.classList.add('active');
-
-  switch(gameId) {
-    case 'morpion':
-      morpionGame.init();
-      break;
-    case 'memory':
-      memoryGame.init();
-      break;
-    case 'snake':
-      snakeGame.init();
-      break;
-  }
-}
-
-function closeGames() {
-  switchTab('games');
-  if (snakeGame.gameLoop) {
-    clearInterval(snakeGame.gameLoop);
-  }
-  document.querySelectorAll('.game-container').forEach(g => g.classList.remove('active'));
-}
-
-// FONCTION AMÉLIORÉE : Rejoindre une salle multijoueur
-async function joinMultiplayerRoom(game) {
-  if (!auth.isLoggedIn()) {
-    store.showToast('Connectez-vous pour jouer en ligne', 'warning');
-    openAuthModal();
-    return;
-  }
-
-  store.showToast(`🔍 Recherche de joueurs en ligne...`, 'info');
-  
-  try {
-    const availableRooms = await server.getRooms(game);
-    
-    let roomId = null;
-    
-    if (availableRooms.length > 0) {
-      roomId = availableRooms[0].id;
-      store.showToast(`🎮 Salle trouvée! Connexion...`, 'info');
-    } else {
-      roomId = `${game}-lobby`;
-      store.showToast(`🏠 Création d'une nouvelle salle...`, 'info');
-    }
-    
-    openGame(game);
-    
-    if (game === 'morpion') {
-      await morpionGame.setMode('online', roomId);
-    }
-  } catch (error) {
-    console.error('Erreur recherche salle:', error);
-    store.showToast('Erreur de connexion au serveur', 'error');
-  }
-}
-
-function sendChatMessage() {
-  const input = document.getElementById('morpion-chat-input');
-  const message = input.value.trim();
-  
-  if (message) {
-    const user = auth.getCurrentUser();
-    if (user && morpionGame.roomId) {
-      server.sendChatMessage(message, morpionGame.roomId);
-      chatSystem.addPlayerMessage(morpionGame.roomId, user.username, message);
-      input.value = '';
-    }
-  }
-}
-
-function toggleInstructions(gameId) {
-  const element = document.getElementById(`${gameId}-instructions`);
-  element.style.display = element.style.display === 'none' ? 'block' : 'none';
-}
-
-function toggleTheme() {
-  store.state.settings.dark = !store.state.settings.dark;
-  store.saveSettings();
-  applySettings();
-}
-
-function toggleSound() {
-  store.state.settings.sound = !store.state.settings.sound;
-  store.saveSettings();
-  applySettings();
-}
-
-function handleAuthButton() {
-  if (auth.isLoggedIn()) {
-    openProfileModal();
-  } else {
-    openAuthModal();
-  }
-}
-
-function openAuthModal() {
-  document.getElementById('auth-modal').classList.add('active');
-  document.getElementById('auth-modal-title').textContent = 'Connexion';
-  document.getElementById('auth-submit').textContent = 'Se connecter';
-  document.getElementById('auth-switch').textContent = 'Créer un compte';
-}
-
-function openProfileModal() {
-  const user = auth.getCurrentUser();
-  if (user) {
-    document.getElementById('total-games').textContent = user.stats.totalGames;
-    document.getElementById('win-rate').textContent = user.stats.totalGames > 0 ? 
-      Math.round((user.stats.wins / user.stats.totalGames) * 100) + '%' : '0%';
-    document.getElementById('total-score').textContent = user.stats.totalScore;
-    document.getElementById('player-level').textContent = user.stats.level;
-  }
-  document.getElementById('profile-modal').classList.add('active');
-}
-
-async function handleAuthSubmit() {
-  const username = document.getElementById('auth-username').value.trim();
-  const password = document.getElementById('auth-password').value;
-
-  if (!username || !password) {
-    store.showToast('Veuillez remplir tous les champs', 'warning');
-    return;
-  }
-
-  const isLogin = document.getElementById('auth-submit').textContent === 'Se connecter';
-  
-  if (isLogin) {
-    const success = await auth.login(username, password);
-    if (success) {
-      document.getElementById('auth-modal').classList.remove('active');
-    }
-  } else {
-    const success = await auth.register({ username, password, email: `${username}@gamehub.com` });
-    if (success) {
-      document.getElementById('auth-modal').classList.remove('active');
-    }
-  }
-}
-
-function toggleAuthMode() {
-  const title = document.getElementById('auth-modal-title');
-  const submit = document.getElementById('auth-submit');
-  const switchBtn = document.getElementById('auth-switch');
-
-  if (submit.textContent === 'Se connecter') {
-    title.textContent = 'Créer un compte';
-    submit.textContent = 'Créer le compte';
-    switchBtn.textContent = 'Se connecter';
-  } else {
-    title.textContent = 'Connexion';
-    submit.textContent = 'Se connecter';
-    switchBtn.textContent = 'Créer un compte';
-  }
-}
-
-function openTournamentModal() {
-  if (!auth.isLoggedIn()) {
-    store.showToast('Connectez-vous pour créer un tournoi', 'warning');
-    openAuthModal();
-    return;
-  }
-  document.getElementById('tournament-modal').classList.add('active');
-}
-
-async function createTournament() {
-  const name = document.getElementById('tournament-name').value.trim();
-  const game = document.getElementById('tournament-game').value;
-  const players = parseInt(document.getElementById('tournament-players').value);
-
-  if (!name) {
-    store.showToast('Veuillez entrer un nom pour le tournoi', 'error');
-    return;
-  }
-
-  const user = auth.getCurrentUser();
-  await tournamentSystem.createTournament({
-    name,
-    game,
-    maxPlayers: players,
-    creator: user.username
-  });
-
-  document.getElementById('tournament-modal').classList.remove('active');
-}
-
-async function loadLeaderboard(filter = 'all') {
-  try {
-    const players = await server.getLeaderboard(filter);
-    const list = document.getElementById('leaderboard-list');
-    
-    list.innerHTML = '';
-    
-    players.forEach((player, index) => {
-      const isCurrentUser = auth.isLoggedIn() && player.username === auth.getCurrentUser().username;
-      const item = document.createElement('li');
-      item.className = `leaderboard-item ${isCurrentUser ? 'you' : ''}`;
-      
-      item.innerHTML = `
-        <div class="rank ${index < 3 ? 'rank-' + (index + 1) : ''}">${index + 1}</div>
-        <div style="display:flex;align-items:center;gap:10px">
-          <div class="player-avatar">${player.avatar}</div>
-          <div class="player-name">${player.username}</div>
-        </div>
-        <div class="player-score">${player.score} pts</div>
-      `;
-      
-      list.appendChild(item);
-    });
-  } catch (error) {
-    console.error('Error loading leaderboard:', error);
-  }
-}
-
-function loadAchievements() {
-  const grid = document.getElementById('achievements-grid');
-  const achievements = store.state.achievements;
-  let unlockedCount = 0;
-
-  grid.innerHTML = '';
-
-  achievements.forEach(achievement => {
-    if (achievement.unlocked) unlockedCount++;
-
-    const card = document.createElement('div');
-    card.className = `achievement-card ${achievement.unlocked ? 'unlocked' : ''}`;
-    
-    card.innerHTML = `
-      <div class="achievement-icon">${achievement.icon}</div>
-      <div class="achievement-name">${achievement.name}</div>
-      <div class="achievement-desc">${achievement.description}</div>
-    `;
-    
-    grid.appendChild(card);
-  });
-
-  document.getElementById('achievements-count').textContent = unlockedCount;
-}
-
-// =========================
-// GESTION DES ERREURS
-// =========================
-window.addEventListener('error', (e) => {
-  console.error('Global error:', e.error);
-  store.showToast('Une erreur est survenue', 'error');
-});
-
-window.addEventListener('unhandledrejection', (e) => {
-  console.error('Unhandled promise rejection:', e.reason);
-  store.showToast('Erreur de chargement', 'error');
-});
-
-console.log('🚀 GameHub VRAI MULTIJOUEUR FONCTIONNEL - Prêt à fonctionner!');
-</script>
+        function leaveQueue() {
+            showScreen('home-screen');
+        }
+
+        function leaveGame() {
+            if (currentGame) {
+                socket.emit('leave-game', { gameId: currentGame });
+            }
+            showScreen('home-screen');
+            currentGame = null;
+        }
+
+        function makeMove(index) {
+            if (!currentGame) return;
+            
+            socket.emit('morpion-move', {
+                gameId: currentGame,
+                move: index
+            });
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            
+            if (message && currentGame) {
+                socket.emit('game-chat', {
+                    gameId: currentGame,
+                    message: message
+                });
+                input.value = '';
+            }
+        }
+
+        // Fonctions d'affichage
+        function showScreen(screenId) {
+            document.getElementById('home-screen').classList.add('hidden');
+            document.getElementById('waiting-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.add('hidden');
+            
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+
+        function initializeBoard() {
+            const board = document.getElementById('game-board');
+            board.innerHTML = '';
+            
+            for (let i = 0; i < 9; i++) {
+                const cell = document.createElement('button');
+                cell.className = 'cell';
+                cell.textContent = '';
+                cell.onclick = () => makeMove(i);
+                board.appendChild(cell);
+            }
+        }
+
+        function updateBoard(data) {
+            const cells = document.querySelectorAll('.cell');
+            data.board.forEach((symbol, index) => {
+                cells[index].textContent = symbol;
+                cells[index].className = `cell ${symbol.toLowerCase()}`;
+            });
+        }
+
+        function resetBoard(data) {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach(cell => {
+                cell.textContent = '';
+                cell.className = 'cell';
+            });
+            document.getElementById('game-status').textContent = data.message;
+        }
+
+        function updatePlayers(players) {
+            players.forEach(player => {
+                if (player.symbol === 'X') {
+                    document.getElementById('player1-name').textContent = player.name;
+                    document.getElementById('player1').className = 'player active';
+                } else {
+                    document.getElementById('player2-name').textContent = player.name;
+                    document.getElementById('player2').className = 'player';
+                }
+            });
+        }
+
+        function updateGameStatus(data) {
+            let status = `Tour de ${data.currentPlayer === 'X' ? document.getElementById('player1-name').textContent : document.getElementById('player2-name').textContent}`;
+            
+            if (data.winner) {
+                status = `🎉 ${data.winner === 'X' ? document.getElementById('player1-name').textContent : document.getElementById('player2-name').textContent} a gagné !`;
+            } else if (data.gameOver) {
+                status = '🤝 Match nul !';
+            }
+            
+            document.getElementById('game-status').textContent = status;
+            
+            // Mettre à jour les joueurs actifs
+            if (data.currentPlayer === 'X') {
+                document.getElementById('player1').classList.add('active');
+                document.getElementById('player2').classList.remove('active');
+            } else {
+                document.getElementById('player1').classList.remove('active');
+                document.getElementById('player2').classList.add('active');
+            }
+        }
+
+        function addChatMessage(player, message) {
+            const chat = document.getElementById('chat-messages');
+            const messageElement = document.createElement('div');
+            messageElement.innerHTML = `<strong>${player}:</strong> ${message}`;
+            chat.appendChild(messageElement);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        // Entrée pour le chat
+        document.getElementById('chat-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Entrée pour le nom
+        document.getElementById('playerName').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                joinGame();
+            }
+        });
+    </script>
 </body>
 </html>
