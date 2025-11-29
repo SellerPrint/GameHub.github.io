@@ -33,15 +33,16 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Données en mémoire
+// Données en mémoire AVEC MISE À JOUR RÉELLE
 const users = new Map();
 const rooms = new Map();
 const tournaments = new Map();
 const leaderboard = new Map();
-const activePlayers = new Set();
+const activePlayers = new Set(); // Pour suivre les joueurs connectés
 
-// Initialisation des données
+// Initialisation des données AVEC MÉCANISMES RÉELS
 function initializeData() {
+  // Utilisateur admin par défaut
   users.set('admin', {
     id: '1',
     username: 'admin',
@@ -50,10 +51,12 @@ function initializeData() {
     stats: { totalGames: 0, wins: 0, totalScore: 0, level: 1 },
     createdAt: new Date()
   });
+
+  // Classement DYNAMIQUE - sera mis à jour automatiquement
   updateLeaderboard();
 }
 
-// Mettre à jour le classement
+// Mettre à jour le classement automatiquement
 function updateLeaderboard() {
   const allPlayers = Array.from(users.values())
     .map(user => ({
@@ -63,12 +66,15 @@ function updateLeaderboard() {
       level: user.stats.level
     }))
     .sort((a, b) => b.score - a.score)
-    .slice(0, 10);
+    .slice(0, 10); // Top 10
+
   leaderboard.set('all', allPlayers);
+  
+  // Émettre la mise à jour à tous les clients
   io.emit('leaderboard-update', allPlayers);
 }
 
-// API Routes
+// API Routes AMÉLIORÉES
 app.post('/api/register', async (req, res) => {
   try {
     const { username, password, email } = req.body;
@@ -90,6 +96,8 @@ app.post('/api/register', async (req, res) => {
     users.set(username, user);
     
     const token = jwt.sign({ userId: user.id, username }, 'gamehub-secret', { expiresIn: '7d' });
+    
+    // Mettre à jour le classement
     updateLeaderboard();
     
     res.json({ 
@@ -131,7 +139,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// API pour les salles
+// NOUVELLE ROUTE : Lister les salles disponibles
 app.get('/api/rooms/:game', (req, res) => {
   const game = req.params.game;
   const availableRooms = Array.from(rooms.values())
@@ -142,6 +150,7 @@ app.get('/api/rooms/:game', (req, res) => {
       status: room.status,
       game: room.game
     }));
+  
   res.json(availableRooms);
 });
 
@@ -149,6 +158,7 @@ app.get('/api/leaderboard/:game?', (req, res) => {
   const game = req.params.game || 'all';
   let data = leaderboard.get(game) || [];
   
+  // Si pas de données, générer des données de démonstration DYNAMIQUES
   if (data.length === 0) {
     data = [
       { username: 'ProGamer', score: 1250 + Math.floor(Math.random() * 500), avatar: 'P' },
@@ -174,6 +184,7 @@ app.get('/api/stats', (req, res) => {
       memory: Array.from(rooms.values()).filter(r => r.game === 'memory').length,
       snake: Array.from(rooms.values()).filter(r => r.game === 'snake').length
     },
+    // Ajouter des joueurs simulés pour rendre ça plus vivant
     simulatedPlayers: {
       morpion: Math.floor(Math.random() * 50) + 20,
       memory: Math.floor(Math.random() * 30) + 10,
@@ -201,13 +212,16 @@ function updateGlobalStats() {
     },
     timestamp: new Date()
   };
+  
   io.emit('global-stats-update', stats);
 }
 
-// WebSocket Events - VRAI MULTIJOUEUR FONCTIONNEL
+// WebSocket Events AMÉLIORÉS
 io.on('connection', (socket) => {
   console.log('🔗 Nouveau joueur connecté:', socket.id);
   activePlayers.add(socket.id);
+  
+  // Mettre à jour les stats immédiatement
   updateGlobalStats();
 
   // Événement pour lister les salles
@@ -215,14 +229,14 @@ io.on('connection', (socket) => {
     const { game } = data;
     const availableRooms = Array.from(rooms.values())
       .filter(room => room.game === game && room.players.length < 2);
+    
     socket.emit('rooms-list', availableRooms);
   });
 
-  // REJOINDRE UNE SALLE
   socket.on('join-room', (data) => {
     const { game, playerName, roomId } = data;
     
-    // Utiliser un ID de salle fixe pour que les joueurs se retrouvent
+    // Utiliser un ID de salle fixe pour le jeu spécifique ou celui fourni
     const roomKey = roomId || `${game}-lobby`;
     
     let room = rooms.get(roomKey);
@@ -233,7 +247,7 @@ io.on('connection', (socket) => {
         players: [],
         status: 'waiting',
         createdAt: new Date(),
-        board: Array(9).fill(''),
+        board: Array(9).fill(''), // État du jeu pour le morpion
         currentPlayer: 'X'
       };
       rooms.set(roomKey, room);
@@ -262,9 +276,9 @@ io.on('connection', (socket) => {
       socket.join(roomKey);
       rooms.set(roomKey, room);
 
-      console.log(`🎮 ${playerName} a rejoint ${roomKey} (${room.players.length}/2 joueurs) - Symbole: ${player.symbol}`);
+      console.log(`🎮 ${playerName} a rejoint ${roomKey} (${room.players.length}/2 joueurs)`);
 
-      // Notifier TOUS les joueurs
+      // Notifier TOUS les clients de la mise à jour
       io.to(roomKey).emit('player-joined', {
         player,
         room: room,
@@ -282,52 +296,46 @@ io.on('connection', (socket) => {
           currentPlayer: 'X',
           roomId: roomKey
         });
-        console.log(`🚀 Partie démarrée dans ${roomKey} - Joueur X: ${room.players[0].name}, Joueur O: ${room.players[1].name}`);
       }
 
+      // Mettre à jour les stats globales
       updateGlobalStats();
     } else {
       socket.emit('room-full', { message: 'Salle pleine' });
     }
   });
 
-  // MOUVEMENT DE JEU - CORRIGÉ POUR PREMIER JOUEUR
   socket.on('game-move', (data) => {
     const { game, move, roomId } = data;
     const room = rooms.get(roomId);
     
-    console.log(`🎯 Mouvement reçu de ${socket.id}: case ${move} dans ${roomId}`);
-    
-    if (room && room.players.length === 2 && room.status === 'playing') {
-      // Vérifier que c'est le tour du bon joueur
+    // CORRECTION : Accepter les mouvements dès qu'il y a 2 joueurs
+    if (room && room.players.length === 2) {
+      // Vérifier que c'est le bon joueur
       const currentPlayer = room.players.find(p => p.id === socket.id);
-      
       if (!currentPlayer) {
-        console.log('❌ Joueur non trouvé dans la salle');
-        socket.emit('not-your-turn', { message: "Joueur non trouvé dans la salle" });
+        socket.emit('invalid-move', { message: 'Vous n\'êtes pas dans cette partie' });
         return;
       }
 
-      console.log(`🔍 Vérification tour: ${currentPlayer.name} (${currentPlayer.symbol}) vs currentPlayer: ${room.currentPlayer}`);
-
+      // Vérifier que c'est son tour
       if (currentPlayer.symbol !== room.currentPlayer) {
-        console.log('⏰ Ce n\'est pas le tour de ce joueur');
-        socket.emit('not-your-turn', { 
-          message: `Ce n'est pas votre tour ! Tour du joueur ${room.currentPlayer}` 
-        });
+        socket.emit('not-your-turn', { message: 'Ce n\'est pas votre tour !' });
         return;
       }
 
-      // Vérifier que la case est libre
+      // Vérifier que la case est vide
       if (room.board[move] !== '') {
-        console.log('❌ Case déjà occupée');
-        socket.emit('invalid-move', { message: "Case déjà occupée" });
+        socket.emit('invalid-move', { message: 'Cette case est déjà occupée' });
         return;
       }
 
-      console.log(`✅ Mouvement valide: ${currentPlayer.name} (${currentPlayer.symbol}) joue ${move}`);
+      // S'assurer que le statut est 'playing'
+      if (room.status !== 'playing') {
+        room.status = 'playing';
+      }
 
-      // Mettre à jour le plateau
+      // Effectuer le mouvement
       room.board[move] = currentPlayer.symbol;
       
       // Vérifier s'il y a un gagnant
@@ -338,68 +346,50 @@ io.on('connection', (socket) => {
       room.currentPlayer = room.currentPlayer === 'X' ? 'O' : 'X';
       rooms.set(roomId, room);
       
-      console.log(`🔄 Nouveau tour: ${room.currentPlayer}`);
-
-      // Transmettre le mouvement à TOUS les joueurs
-      io.to(roomId).emit('game-state-update', {
-        board: room.board,
-        currentPlayer: room.currentPlayer,
-        move: move,
+      // Transmettre le mouvement à tous les joueurs
+      io.to(roomId).emit('opponent-move', {
+        move,
         symbol: currentPlayer.symbol,
         playerName: currentPlayer.name,
+        timestamp: new Date(),
         winner: winner,
         gameOver: winner || isBoardFull,
-        room: room
+        board: room.board,
+        currentPlayer: room.currentPlayer
       });
 
-      console.log(`📢 Mouvement diffusé à tous les joueurs de ${roomId}`);
-
       // Mettre à jour les stats du gagnant
-      if (winner) {
-        const winningPlayer = room.players.find(p => p.symbol === winner);
-        if (winningPlayer && users.has(winningPlayer.name)) {
-          const user = users.get(winningPlayer.name);
-          user.stats.wins++;
-          user.stats.totalScore += 10;
-          user.stats.totalGames++;
-          users.set(winningPlayer.name, user);
-          updateLeaderboard();
-          console.log(`🏆 ${winningPlayer.name} a gagné dans ${roomId}`);
-        }
+      if (winner && users.has(currentPlayer.name)) {
+        const user = users.get(currentPlayer.name);
+        user.stats.wins++;
+        user.stats.totalScore += 10;
+        user.stats.totalGames++;
+        users.set(currentPlayer.name, user);
+        updateLeaderboard();
       }
 
       // Si partie terminée, réinitialiser après un délai
       if (winner || isBoardFull) {
-        room.status = 'finished';
         setTimeout(() => {
           if (rooms.has(roomId)) {
             const endedRoom = rooms.get(roomId);
             endedRoom.board = Array(9).fill('');
-            endedRoom.status = 'playing';
+            endedRoom.status = 'playing'; // Garder 'playing' tant que les 2 joueurs sont là
             endedRoom.currentPlayer = 'X';
             rooms.set(roomId, endedRoom);
             
             io.to(roomId).emit('game-reset', {
-              message: 'Nouvelle partie !',
+              message: 'Nouvelle partie dans 3 secondes...',
               board: endedRoom.board,
               currentPlayer: endedRoom.currentPlayer
             });
-            console.log(`🔄 Nouvelle partie dans ${roomId}`);
           }
         }, 3000);
       }
+    } else if (!room) {
+      socket.emit('invalid-game-state', { message: 'Salle inexistante' });
     } else {
-      console.log(`❌ Conditions non remplies:`, {
-        roomExists: !!room,
-        players: room?.players.length,
-        status: room?.status
-      });
-      socket.emit('invalid-game-state', { 
-        message: 'Partie non prête', 
-        roomExists: !!room,
-        players: room?.players.length,
-        status: room?.status 
-      });
+      socket.emit('invalid-game-state', { message: 'Partie non prête : en attente d\'un second joueur' });
     }
   });
 
@@ -410,6 +400,7 @@ io.on('connection', (socket) => {
     if (room) {
       const player = room.players.find(p => p.id === socket.id);
       if (player) {
+        // Diffuser le message à tous les joueurs de la salle
         io.to(roomId).emit('chat-message', {
           message,
           playerName: player.name,
@@ -446,6 +437,7 @@ io.on('connection', (socket) => {
         
         io.emit('tournament-updated', tournament);
         
+        // Démarrer le tournoi si plein
         if (tournament.participants.length >= tournament.maxPlayers) {
           tournament.status = 'active';
           startTournament(tournamentId);
@@ -487,6 +479,7 @@ io.on('connection', (socket) => {
       }
     });
     
+    // Retirer des joueurs actifs
     activePlayers.delete(socket.id);
     updateGlobalStats();
   });
@@ -495,9 +488,9 @@ io.on('connection', (socket) => {
 // Logique de victoire au morpion
 function checkMorpionWinner(board) {
   const lines = [
-    [0, 1, 2], [3, 4, 5], [6, 7, 8],
-    [0, 3, 6], [1, 4, 7], [2, 5, 8],
-    [0, 4, 8], [2, 4, 6]
+    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Lignes
+    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Colonnes
+    [0, 4, 8], [2, 4, 6] // Diagonales
   ];
 
   for (const [a, b, c] of lines) {
@@ -512,13 +505,17 @@ function startTournament(tournamentId) {
   const tournament = tournaments.get(tournamentId);
   if (tournament) {
     console.log(`🏆 Démarrage du tournoi: ${tournament.name}`);
+    
+    // Générer un bracket simple
     tournament.bracket = generateBracket(tournament.participants);
     tournaments.set(tournamentId, tournament);
+    
     io.emit('tournament-started', tournament);
   }
 }
 
 function generateBracket(participants) {
+  // Bracket tournament simple
   const bracket = [];
   let currentRound = participants.map(p => ({ player: p, winner: null }));
   
@@ -538,14 +535,14 @@ function generateBracket(participants) {
     currentRound = nextRound;
   }
   
-  bracket.push(currentRound);
+  bracket.push(currentRound); // Finale
   return bracket;
 }
 
-// Mettre à jour périodiquement les stats
+// Mettre à jour périodiquement les stats pour simuler l'activité
 setInterval(() => {
   updateGlobalStats();
-}, 10000);
+}, 10000); // Toutes les 10 secondes
 
 // Initialiser les données
 initializeData();
@@ -554,5 +551,5 @@ const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => {
   console.log(`🎮 GameHub Server démarré sur le port ${PORT}`);
   console.log(`📍 URL: http://localhost:${PORT}`);
-  console.log(`🎯 VRAI MULTIJOUEUR FONCTIONNEL - Les joueurs jouent VRAIMENT ensemble!`);
+  console.log(`🔗 Multijoueur activé - Les joueurs peuvent maintenant se voir et jouer ensemble!`);
 });
