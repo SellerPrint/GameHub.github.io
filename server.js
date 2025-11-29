@@ -2,18 +2,37 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = createServer(app);
+
+// Configuration CORS pour Socket.io
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: ["https://votre-app.render.com", "http://localhost:10000"],
     methods: ["GET", "POST"]
   }
 });
 
+// Middleware
 app.use(cors());
-app.use(express.static('public'));
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Route pour health check (obligatoire sur Render)
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Route principale
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // Données SIMPLES
 const players = {};
@@ -54,10 +73,16 @@ io.on('connection', (socket) => {
     const { gameId, cellIndex } = data;
     const game = games[gameId];
     
-    if (!game) return;
+    if (!game) {
+      socket.emit('error', { message: 'Partie introuvable' });
+      return;
+    }
 
     const player = game.players[socket.id];
-    if (!player) return;
+    if (!player) {
+      socket.emit('error', { message: 'Vous n\'êtes pas dans cette partie' });
+      return;
+    }
 
     // Vérifier que c'est son tour
     if (game.currentPlayer !== player.symbol) {
@@ -78,25 +103,30 @@ io.on('connection', (socket) => {
     const winner = checkWinner(game.board);
     const isDraw = !winner && game.board.every(cell => cell !== '');
     
+    // Mettre à jour le tour
+    game.currentPlayer = game.currentPlayer === 'X' ? 'O' : 'X';
+    
     // Émettre le mouvement à tous les joueurs
     io.to(gameId).emit('move-made', {
       cellIndex,
       symbol: player.symbol,
       board: game.board,
-      currentPlayer: game.currentPlayer === 'X' ? 'O' : 'X',
+      currentPlayer: game.currentPlayer,
       winner,
       isDraw
     });
 
-    // Mettre à jour le tour
-    game.currentPlayer = game.currentPlayer === 'X' ? 'O' : 'X';
-    
     // Réinitialiser si partie terminée
     if (winner || isDraw) {
       setTimeout(() => {
-        game.board = ['', '', '', '', '', '', '', '', ''];
-        game.currentPlayer = 'X';
-        io.to(gameId).emit('game-reset', { board: game.board });
+        if (games[gameId]) {
+          games[gameId].board = ['', '', '', '', '', '', '', '', ''];
+          games[gameId].currentPlayer = 'X';
+          io.to(gameId).emit('game-reset', { 
+            board: games[gameId].board,
+            currentPlayer: 'X'
+          });
+        }
       }, 3000);
     }
   });
@@ -120,12 +150,13 @@ io.on('connection', (socket) => {
     // Retirer des parties
     Object.keys(games).forEach(gameId => {
       const game = games[gameId];
-      if (game.players[socket.id]) {
+      if (game && game.players[socket.id]) {
         const otherPlayerId = Object.keys(game.players).find(id => id !== socket.id);
         if (otherPlayerId) {
           io.to(otherPlayerId).emit('opponent-left');
         }
         delete games[gameId];
+        console.log(`🗑️ Partie ${gameId} supprimée`);
       }
     });
     
@@ -199,8 +230,10 @@ function checkWinner(board) {
   return null;
 }
 
+// Port pour Render (obligatoire)
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, () => {
+
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🎮 Serveur Morpion sur le port ${PORT}`);
-  console.log(`📍 http://localhost:${PORT}`);
+  console.log(`📍 http://0.0.0.0:${PORT}`);
 });
