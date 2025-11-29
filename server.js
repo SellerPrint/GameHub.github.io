@@ -4,17 +4,17 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = createServer(app);
-
-// Configuration CORS pour Socket.io
 const io = new Server(server, {
   cors: {
-    origin: ["https://votre-app.render.com", "http://localhost:10000"],
+    origin: "*",
     methods: ["GET", "POST"]
   }
 });
@@ -24,205 +24,366 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Route pour health check (obligatoire sur Render)
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
-});
-
-// Route principale
+// Routes de base
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Données SIMPLES
-const players = {};
-const games = {};
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
 
-io.on('connection', (socket) => {
-  console.log('🔗 Joueur connecté:', socket.id);
-  
-  // REJOINDRE LE JEU
-  socket.on('join-game', (data) => {
-    const { playerName } = data;
+// Données en mémoire avec discussions séparées
+const users = new Map();
+const games = new Map();
+const waitingPlayers = new Map();
+const privateChats = new Map(); // Nouvelles discussions privées
+
+// Structure: privateChats.set(user1-user2, [messages])
+
+// Initialisation
+function initializeData() {
+  users.set('admin', {
+    id: '1',
+    username: 'admin',
+    password: bcrypt.hashSync('admin123', 12),
+    email: 'admin@gamehub.com',
+    stats: { totalGames: 0, wins: 0, totalScore: 0, level: 1 },
+    createdAt: new Date()
+  });
+}
+
+// API Routes
+app.post('/api/register', async (req, res) => {
+  try {
+    const { username, password, email } = req.body;
     
-    players[socket.id] = {
-      id: socket.id,
-      name: playerName,
-      symbol: null
+    if (users.has(username)) {
+      return res.status(400).json({ error: 'Nom d\'utilisateur déjà pris' });
+    }
+
+    const user = {
+      id: 'user-' + Date.now(),
+      username,
+      password: bcrypt.hashSync(password, 12),
+      email,
+      stats: { totalGames: 0, wins: 0, totalScore: 0, level: 1 },
+      achievements: [],
+      createdAt: new Date()
     };
 
-    console.log(`🎮 ${playerName} veut jouer`);
+    users.set(username, user);
+    
+    const token = jwt.sign({ userId: user.id, username }, 'gamehub-secret', { expiresIn: '7d' });
+    
+    res.json({ 
+      success: true, 
+      user: { 
+        id: user.id, 
+        username: user.username, 
+        stats: user.stats 
+      }, 
+      token 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
-    // Chercher une partie en attente
-    const availableGame = Object.values(games).find(game => 
-      game.status === 'waiting' && 
-      Object.keys(game.players).length === 1
-    );
+app.post('/api/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const user = users.get(username);
+    
+    if (!user || !bcrypt.compareSync(password, user.password)) {
+      return res.status(401).json({ error: 'Identifiants invalides' });
+    }
 
-    if (availableGame) {
-      // Rejoindre une partie existante
-      joinExistingGame(socket, availableGame, playerName);
+    const token = jwt.sign({ userId: user.id, username }, 'gamehub-secret', { expiresIn: '7d' });
+    
+    res.json({ 
+      success: true, 
+      user: { 
+        id: user.id, 
+        username: user.username, 
+        stats: user.stats 
+      }, 
+      token 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/stats', (req, res) => {
+  const stats = {
+    onlinePlayers: Array.from(games.values()).reduce((acc, game) => acc + game.players.length, 0),
+    activeGames: games.size,
+    waitingPlayers: Array.from(waitingPlayers.values()).length
+  };
+  res.json(stats);
+});
+
+// WebSocket Events avec discussions privées
+io.on('connection', (socket) => {
+  console.log('🔗 Joueur connecté:', socket.id);
+
+  // Stocker l'username avec la socket
+  socket.on('user-connected', (userData) => {
+    socket.username = userData.username;
+    console.log(`👤 ${userData.username} connecté (${socket.id})`);
+  });
+
+  // REJOINDRE UNE PARTIE DE MORPION
+  socket.on('join-morpion', (data) => {
+    const { playerName } = data;
+    socket.username = playerName;
+    
+    const waitingPlayer = waitingPlayers.get('morpion');
+    
+    if (waitingPlayer && waitingPlayer.socketId !== socket.id) {
+      const gameId = `morpion-${Date.now()}`;
+      const game = {
+        id: gameId,
+        game: 'morpion',
+        players: [
+          {
+            id: waitingPlayer.socketId,
+            name: waitingPlayer.playerName,
+            symbol: 'X'
+          },
+          {
+            id: socket.id,
+            name: playerName,
+            symbol: 'O'
+          }
+        ],
+        status: 'playing',
+        board: Array(9).fill(''),
+        currentPlayer: 'X',
+        createdAt: new Date()
+      };
+
+      games.set(gameId, game);
+      waitingPlayers.delete('morpion');
+      
+      socket.join(gameId);
+      io.to(waitingPlayer.socketId).join(gameId);
+      
+      console.log(`🎮 Partie créée: ${playerName} vs ${waitingPlayer.playerName}`);
+
+      io.to(gameId).emit('game-start', {
+        gameId: gameId,
+        players: game.players,
+        currentPlayer: 'X',
+        message: 'Partie commencée!'
+      });
+      
     } else {
-      // Créer une nouvelle partie
-      createNewGame(socket, playerName);
+      waitingPlayers.set('morpion', {
+        socketId: socket.id,
+        playerName: playerName,
+        joinedAt: new Date()
+      });
+      
+      console.log(`⏳ ${playerName} en attente d'un adversaire...`);
+      
+      socket.emit('waiting-for-player', {
+        message: 'En attente d\'un adversaire...'
+      });
     }
   });
 
-  // FAIRE UN MOUVEMENT
-  socket.on('make-move', (data) => {
-    const { gameId, cellIndex } = data;
-    const game = games[gameId];
+  // MOUVEMENT MORPION
+  socket.on('morpion-move', (data) => {
+    const { gameId, move } = data;
+    const game = games.get(gameId);
     
     if (!game) {
       socket.emit('error', { message: 'Partie introuvable' });
       return;
     }
 
-    const player = game.players[socket.id];
-    if (!player) {
+    const currentPlayer = game.players.find(p => p.id === socket.id);
+    if (!currentPlayer) {
       socket.emit('error', { message: 'Vous n\'êtes pas dans cette partie' });
       return;
     }
 
-    // Vérifier que c'est son tour
-    if (game.currentPlayer !== player.symbol) {
+    if (game.currentPlayer !== currentPlayer.symbol) {
       socket.emit('not-your-turn', { message: 'Ce n\'est pas votre tour !' });
       return;
     }
 
-    // Vérifier que la case est vide
-    if (game.board[cellIndex] !== '') {
+    if (game.board[move] !== '') {
       socket.emit('invalid-move', { message: 'Case déjà occupée' });
       return;
     }
 
-    // Faire le mouvement
-    game.board[cellIndex] = player.symbol;
+    game.board[move] = currentPlayer.symbol;
     
-    // Vérifier victoire
     const winner = checkWinner(game.board);
     const isDraw = !winner && game.board.every(cell => cell !== '');
     
-    // Mettre à jour le tour
     game.currentPlayer = game.currentPlayer === 'X' ? 'O' : 'X';
+    games.set(gameId, game);
     
-    // Émettre le mouvement à tous les joueurs
-    io.to(gameId).emit('move-made', {
-      cellIndex,
-      symbol: player.symbol,
+    io.to(gameId).emit('morpion-update', {
+      move,
+      symbol: currentPlayer.symbol,
+      playerName: currentPlayer.name,
+      winner: winner,
+      gameOver: winner || isDraw,
       board: game.board,
-      currentPlayer: game.currentPlayer,
-      winner,
-      isDraw
+      currentPlayer: game.currentPlayer
     });
 
-    // Réinitialiser si partie terminée
+    if (winner && users.has(currentPlayer.name)) {
+      const user = users.get(currentPlayer.name);
+      user.stats.wins++;
+      user.stats.totalScore += 10;
+      user.stats.totalGames++;
+      users.set(currentPlayer.name, user);
+    }
+
     if (winner || isDraw) {
       setTimeout(() => {
-        if (games[gameId]) {
-          games[gameId].board = ['', '', '', '', '', '', '', '', ''];
-          games[gameId].currentPlayer = 'X';
-          io.to(gameId).emit('game-reset', { 
-            board: games[gameId].board,
-            currentPlayer: 'X'
+        if (games.has(gameId)) {
+          const endedGame = games.get(gameId);
+          endedGame.board = Array(9).fill('');
+          endedGame.currentPlayer = 'X';
+          games.set(gameId, endedGame);
+          
+          io.to(gameId).emit('morpion-reset', {
+            message: 'Nouvelle partie !',
+            board: endedGame.board,
+            currentPlayer: endedGame.currentPlayer
           });
         }
       }, 3000);
     }
   });
 
-  // CHAT
-  socket.on('send-message', (data) => {
+  // CHAT DE PARTIE (existant)
+  socket.on('game-chat', (data) => {
     const { gameId, message } = data;
-    const game = games[gameId];
-    if (game && game.players[socket.id]) {
-      io.to(gameId).emit('new-message', {
-        player: players[socket.id].name,
-        message: message
-      });
+    const game = games.get(gameId);
+    
+    if (game) {
+      const player = game.players.find(p => p.id === socket.id);
+      if (player) {
+        io.to(gameId).emit('game-chat', {
+          message,
+          playerName: player.name,
+          timestamp: new Date()
+        });
+      }
     }
+  });
+
+  // NOUVEAU : CHAT PRIVÉ entre utilisateurs
+  socket.on('private-message', (data) => {
+    const { toUsername, message } = data;
+    const fromUsername = socket.username;
+    
+    if (!fromUsername || !toUsername) return;
+
+    // Créer une clé unique pour la conversation (toujours dans le même ordre)
+    const chatKey = [fromUsername, toUsername].sort().join('-');
+    
+    // Initialiser la conversation si elle n'existe pas
+    if (!privateChats.has(chatKey)) {
+      privateChats.set(chatKey, []);
+    }
+    
+    const chatMessage = {
+      from: fromUsername,
+      to: toUsername,
+      message: message,
+      timestamp: new Date(),
+      read: false
+    };
+    
+    // Ajouter le message à l'historique
+    privateChats.get(chatKey).push(chatMessage);
+    
+    // Envoyer le message à l'expéditeur et au destinataire
+    socket.emit('private-message-received', chatMessage);
+    
+    // Trouver le socket du destinataire
+    const recipientSocket = Array.from(io.sockets.sockets.values())
+      .find(s => s.username === toUsername);
+    
+    if (recipientSocket) {
+      recipientSocket.emit('private-message-received', chatMessage);
+    }
+  });
+
+  // NOUVEAU : Récupérer l'historique d'une conversation privée
+  socket.on('get-chat-history', (data) => {
+    const { otherUser } = data;
+    const currentUser = socket.username;
+    
+    if (!currentUser || !otherUser) return;
+    
+    const chatKey = [currentUser, otherUser].sort().join('-');
+    const history = privateChats.get(chatKey) || [];
+    
+    socket.emit('chat-history', {
+      otherUser: otherUser,
+      messages: history
+    });
+  });
+
+  // NOUVEAU : Lister les utilisateurs en ligne
+  socket.on('get-online-users', () => {
+    const onlineUsers = Array.from(io.sockets.sockets.values())
+      .map(s => s.username)
+      .filter(username => username && username !== socket.username)
+      .filter((username, index, arr) => arr.indexOf(username) === index); // Doublons
+    
+    socket.emit('online-users', onlineUsers);
   });
 
   // DÉCONNEXION
   socket.on('disconnect', () => {
     console.log('👋 Joueur déconnecté:', socket.id);
     
-    // Retirer des parties
-    Object.keys(games).forEach(gameId => {
-      const game = games[gameId];
-      if (game && game.players[socket.id]) {
-        const otherPlayerId = Object.keys(game.players).find(id => id !== socket.id);
-        if (otherPlayerId) {
-          io.to(otherPlayerId).emit('opponent-left');
+    if (waitingPlayers.get('morpion')?.socketId === socket.id) {
+      waitingPlayers.delete('morpion');
+    }
+    
+    games.forEach((game, gameId) => {
+      const playerIndex = game.players.findIndex(p => p.id === socket.id);
+      if (playerIndex !== -1) {
+        const playerName = game.players[playerIndex].name;
+        const otherPlayer = game.players.find(p => p.id !== socket.id);
+        
+        if (otherPlayer) {
+          io.to(otherPlayer.id).emit('player-left', {
+            message: `${playerName} s'est déconnecté`
+          });
         }
-        delete games[gameId];
-        console.log(`🗑️ Partie ${gameId} supprimée`);
+        
+        games.delete(gameId);
       }
     });
-    
-    delete players[socket.id];
+
+    // Notifier que l'utilisateur est hors ligne
+    if (socket.username) {
+      socket.broadcast.emit('user-offline', socket.username);
+    }
   });
 });
 
-function createNewGame(socket, playerName) {
-  const gameId = 'game-' + Date.now();
-  
-  games[gameId] = {
-    id: gameId,
-    players: {
-      [socket.id]: { symbol: 'X' }
-    },
-    board: ['', '', '', '', '', '', '', '', ''],
-    currentPlayer: 'X',
-    status: 'waiting'
-  };
-
-  socket.join(gameId);
-  players[socket.id].symbol = 'X';
-  
-  socket.emit('waiting-for-player', { 
-    gameId: gameId,
-    message: 'En attente d\'un adversaire...'
-  });
-  
-  console.log(`🆕 Nouvelle partie créée: ${gameId} par ${playerName}`);
-}
-
-function joinExistingGame(socket, game, playerName) {
-  const gameId = game.id;
-  
-  game.players[socket.id] = { symbol: 'O' };
-  game.status = 'playing';
-  
-  socket.join(gameId);
-  players[socket.id].symbol = 'O';
-  
-  // Notifier les DEUX joueurs
-  const playerIds = Object.keys(game.players);
-  const player1 = players[playerIds[0]];
-  const player2 = players[playerIds[1]];
-  
-  io.to(gameId).emit('game-started', {
-    gameId: gameId,
-    players: {
-      player1: { name: player1.name, symbol: 'X' },
-      player2: { name: player2.name, symbol: 'O' }
-    },
-    currentPlayer: 'X',
-    board: game.board
-  });
-  
-  console.log(`🎯 Partie commencée: ${player1.name} vs ${player2.name}`);
-}
-
 function checkWinner(board) {
   const lines = [
-    [0, 1, 2], [3, 4, 5], [6, 7, 8], // lignes
-    [0, 3, 6], [1, 4, 7], [2, 5, 8], // colonnes
-    [0, 4, 8], [2, 4, 6] // diagonales
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
   ];
 
-  for (const [a, b, c] of lines) {
+  for (const [a,b,c] of lines) {
     if (board[a] && board[a] === board[b] && board[a] === board[c]) {
       return board[a];
     }
@@ -230,10 +391,12 @@ function checkWinner(board) {
   return null;
 }
 
-// Port pour Render (obligatoire)
-const PORT = process.env.PORT || 10000;
+// Initialiser les données
+initializeData();
 
+const PORT = process.env.PORT || 10000;
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎮 Serveur Morpion sur le port ${PORT}`);
+  console.log(`🎮 GameHub Server sur le port ${PORT}`);
   console.log(`📍 http://0.0.0.0:${PORT}`);
+  console.log(`💬 Système de chat privé activé !`);
 });
