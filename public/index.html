@@ -5,396 +5,229 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Morpion Multiplayer</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
-            font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            overflow: hidden;
-        }
-
-        header {
-            background: #2c3e50;
-            color: white;
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 50px auto;
             padding: 20px;
             text-align: center;
         }
-
-        .game-section {
-            padding: 30px;
-            text-align: center;
+        .screen {
+            display: none;
         }
-
-        .status {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-size: 18px;
-            font-weight: bold;
+        .active {
+            display: block;
         }
-
-        .waiting {
-            background: #fff3cd;
-            color: #856404;
-        }
-
-        .playing {
-            background: #d1ecf1;
-            color: #0c5460;
-        }
-
         .board {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            max-width: 300px;
-            margin: 0 auto 20px;
+            grid-template-columns: repeat(3, 100px);
+            grid-gap: 10px;
+            margin: 20px auto;
         }
-
         .cell {
-            aspect-ratio: 1;
-            background: #34495e;
-            border: none;
-            border-radius: 10px;
+            width: 100px;
+            height: 100px;
+            border: 2px solid #333;
             font-size: 2em;
-            font-weight: bold;
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .cell:hover {
-            background: #4a6278;
-            transform: scale(1.05);
-        }
-
-        .cell.x { color: #e74c3c; }
-        .cell.o { color: #3498db; }
-
-        .players {
             display: flex;
-            justify-content: space-around;
-            margin: 20px 0;
-        }
-
-        .player {
-            padding: 15px;
-            border-radius: 10px;
-            background: #ecf0f1;
-            min-width: 150px;
-        }
-
-        .player.active {
-            background: #3498db;
-            color: white;
-        }
-
-        .controls {
-            margin: 20px 0;
-        }
-
-        button {
-            background: #27ae60;
-            color: white;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 25px;
-            font-size: 16px;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
-            transition: all 0.3s ease;
+            background: #f0f0f0;
         }
-
-        button:hover {
-            background: #219a52;
-            transform: translateY(-2px);
+        .cell.x { color: red; }
+        .cell.o { color: blue; }
+        .status {
+            margin: 20px 0;
+            padding: 10px;
+            background: #e0e0e0;
+            border-radius: 5px;
         }
-
-        button:disabled {
-            background: #95a5a6;
-            cursor: not-allowed;
-            transform: none;
+        input, button {
+            padding: 10px;
+            margin: 5px;
+            font-size: 16px;
         }
-
         .chat {
             margin-top: 20px;
-            border-top: 2px solid #ecf0f1;
-            padding-top: 20px;
         }
-
-        .chat-messages {
-            height: 150px;
+        #chat-messages {
+            height: 100px;
+            border: 1px solid #ccc;
             overflow-y: auto;
-            border: 1px solid #bdc3c7;
-            border-radius: 10px;
+            text-align: left;
             padding: 10px;
-            margin-bottom: 10px;
-            background: #f8f9fa;
-        }
-
-        .chat-input {
-            display: flex;
-            gap: 10px;
-        }
-
-        .chat-input input {
-            flex: 1;
-            padding: 10px;
-            border: 1px solid #bdc3c7;
-            border-radius: 20px;
-            outline: none;
-        }
-
-        .hidden {
-            display: none;
+            margin: 10px 0;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🎮 Morpion Multiplayer</h1>
-            <p>Jouez au morpion en temps réel contre d'autres joueurs !</p>
-        </header>
+    <!-- Écran de connexion -->
+    <div id="connect-screen" class="screen active">
+        <h1>🎯 Morpion Multiplayer</h1>
+        <input type="text" id="player-name" placeholder="Votre pseudo" maxlength="15">
+        <button onclick="joinGame()">Jouer !</button>
+    </div>
 
-        <div class="game-section">
-            <!-- Écran d'accueil -->
-            <div id="home-screen">
-                <div class="status">
-                    <p>Prêt à jouer ?</p>
-                </div>
-                <div class="controls">
-                    <input type="text" id="playerName" placeholder="Votre pseudo" maxlength="15">
-                    <button onclick="joinGame()">Rejoindre une partie</button>
-                </div>
-            </div>
+    <!-- En attente -->
+    <div id="waiting-screen" class="screen">
+        <h2 id="waiting-message">En attente d'un adversaire...</h2>
+        <button onclick="leaveGame()">Annuler</button>
+    </div>
 
-            <!-- En attente d'adversaire -->
-            <div id="waiting-screen" class="hidden">
-                <div class="status waiting">
-                    <p>⏳ En attente d'un adversaire...</p>
-                </div>
-                <div class="controls">
-                    <button onclick="leaveQueue()">Quitter la file</button>
-                </div>
-            </div>
-
-            <!-- Partie en cours -->
-            <div id="game-screen" class="hidden">
-                <div class="status playing">
-                    <p id="game-status">Partie en cours</p>
-                </div>
-
-                <div class="players">
-                    <div id="player1" class="player">
-                        <div id="player1-name">Joueur 1</div>
-                        <div>X</div>
-                    </div>
-                    <div id="player2" class="player">
-                        <div id="player2-name">Joueur 2</div>
-                        <div>O</div>
-                    </div>
-                </div>
-
-                <div class="board" id="game-board">
-                    <!-- Les cases seront générées en JS -->
-                </div>
-
-                <div class="chat">
-                    <div class="chat-messages" id="chat-messages"></div>
-                    <div class="chat-input">
-                        <input type="text" id="chat-input" placeholder="Tapez votre message...">
-                        <button onclick="sendMessage()">Envoyer</button>
-                    </div>
-                </div>
-
-                <div class="controls">
-                    <button onclick="leaveGame()">Quitter la partie</button>
-                </div>
-            </div>
+    <!-- Jeu -->
+    <div id="game-screen" class="screen">
+        <h2>Partie en cours</h2>
+        <div id="game-status" class="status">Tour de X</div>
+        
+        <div class="players">
+            <div id="player1-info">Joueur 1 (X)</div>
+            <div id="player2-info">Joueur 2 (O)</div>
         </div>
+
+        <div class="board" id="game-board">
+            <div class="cell" onclick="makeMove(0)"></div>
+            <div class="cell" onclick="makeMove(1)"></div>
+            <div class="cell" onclick="makeMove(2)"></div>
+            <div class="cell" onclick="makeMove(3)"></div>
+            <div class="cell" onclick="makeMove(4)"></div>
+            <div class="cell" onclick="makeMove(5)"></div>
+            <div class="cell" onclick="makeMove(6)"></div>
+            <div class="cell" onclick="makeMove(7)"></div>
+            <div class="cell" onclick="makeMove(8)"></div>
+        </div>
+
+        <div class="chat">
+            <div id="chat-messages"></div>
+            <input type="text" id="chat-input" placeholder="Tapez un message...">
+            <button onclick="sendMessage()">Envoyer</button>
+        </div>
+
+        <button onclick="leaveGame()">Quitter</button>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        let currentGame = null;
-        let playerName = '';
+        let currentGameId = null;
+        let mySymbol = null;
 
-        // Événements Socket.io
-        socket.on('connect', () => {
-            console.log('Connecté au serveur');
-        });
-
+        // Événements Socket
         socket.on('waiting-for-player', (data) => {
+            currentGameId = data.gameId;
             showScreen('waiting-screen');
-            document.getElementById('game-status').textContent = data.message;
+            document.getElementById('waiting-message').textContent = data.message;
         });
 
-        socket.on('game-start', (data) => {
-            currentGame = data.gameId;
+        socket.on('game-started', (data) => {
+            currentGameId = data.gameId;
             showScreen('game-screen');
-            initializeBoard();
-            updatePlayers(data.players);
-            document.getElementById('game-status').textContent = 'Partie commencée!';
+            
+            // Afficher les joueurs
+            document.getElementById('player1-info').textContent = data.players.player1.name + ' (X)';
+            document.getElementById('player2-info').textContent = data.players.player2.name + ' (O)';
+            
+            // Déterminer mon symbole
+            mySymbol = Object.values(data.players).find(p => p.name === document.getElementById('player-name').value).symbol;
+            
+            updateStatus(data.currentPlayer);
         });
 
-        socket.on('morpion-update', (data) => {
-            updateBoard(data);
-            updateGameStatus(data);
+        socket.on('move-made', (data) => {
+            // Mettre à jour le plateau
+            const cells = document.querySelectorAll('.cell');
+            data.board.forEach((symbol, index) => {
+                cells[index].textContent = symbol;
+                cells[index].className = 'cell ' + symbol.toLowerCase();
+            });
+
+            // Mettre à jour le statut
+            if (data.winner) {
+                document.getElementById('game-status').textContent = `🎉 ${data.winner} a gagné !`;
+            } else if (data.isDraw) {
+                document.getElementById('game-status').textContent = '🤝 Match nul !';
+            } else {
+                updateStatus(data.currentPlayer);
+            }
         });
 
-        socket.on('morpion-reset', (data) => {
-            resetBoard(data);
+        socket.on('game-reset', (data) => {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach(cell => {
+                cell.textContent = '';
+                cell.className = 'cell';
+            });
+            document.getElementById('game-status').textContent = 'Nouvelle partie !';
         });
 
-        socket.on('game-chat', (data) => {
-            addChatMessage(data.playerName, data.message);
+        socket.on('new-message', (data) => {
+            addMessage(data.player, data.message);
         });
 
-        socket.on('player-left', (data) => {
+        socket.on('opponent-left', () => {
+            alert('Votre adversaire a quitté la partie');
+            showScreen('connect-screen');
+        });
+
+        socket.on('not-your-turn', (data) => {
             alert(data.message);
-            showScreen('home-screen');
-            currentGame = null;
         });
 
-        socket.on('error', (data) => {
-            alert('Erreur: ' + data.message);
+        socket.on('invalid-move', (data) => {
+            alert(data.message);
         });
 
-        // Fonctions du jeu
+        // Fonctions
         function joinGame() {
-            playerName = document.getElementById('playerName').value.trim();
+            const playerName = document.getElementById('player-name').value.trim();
             if (!playerName) {
-                alert('Veuillez entrer un pseudo');
+                alert('Entrez un pseudo !');
                 return;
             }
-            
-            socket.emit('join-morpion', { playerName });
-            showScreen('waiting-screen');
+            socket.emit('join-game', { playerName });
         }
 
-        function leaveQueue() {
-            showScreen('home-screen');
-        }
-
-        function leaveGame() {
-            if (currentGame) {
-                socket.emit('leave-game', { gameId: currentGame });
-            }
-            showScreen('home-screen');
-            currentGame = null;
-        }
-
-        function makeMove(index) {
-            if (!currentGame) return;
-            
-            socket.emit('morpion-move', {
-                gameId: currentGame,
-                move: index
+        function makeMove(cellIndex) {
+            if (!currentGameId || !mySymbol) return;
+            socket.emit('make-move', { 
+                gameId: currentGameId, 
+                cellIndex: cellIndex 
             });
         }
 
         function sendMessage() {
             const input = document.getElementById('chat-input');
             const message = input.value.trim();
-            
-            if (message && currentGame) {
-                socket.emit('game-chat', {
-                    gameId: currentGame,
+            if (message && currentGameId) {
+                socket.emit('send-message', {
+                    gameId: currentGameId,
                     message: message
                 });
                 input.value = '';
             }
         }
 
-        // Fonctions d'affichage
-        function showScreen(screenId) {
-            document.getElementById('home-screen').classList.add('hidden');
-            document.getElementById('waiting-screen').classList.add('hidden');
-            document.getElementById('game-screen').classList.add('hidden');
-            
-            document.getElementById(screenId).classList.remove('hidden');
+        function leaveGame() {
+            currentGameId = null;
+            mySymbol = null;
+            showScreen('connect-screen');
         }
 
-        function initializeBoard() {
-            const board = document.getElementById('game-board');
-            board.innerHTML = '';
-            
-            for (let i = 0; i < 9; i++) {
-                const cell = document.createElement('button');
-                cell.className = 'cell';
-                cell.textContent = '';
-                cell.onclick = () => makeMove(i);
-                board.appendChild(cell);
-            }
-        }
-
-        function updateBoard(data) {
-            const cells = document.querySelectorAll('.cell');
-            data.board.forEach((symbol, index) => {
-                cells[index].textContent = symbol;
-                cells[index].className = `cell ${symbol.toLowerCase()}`;
+        function showScreen(screenName) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
             });
+            document.getElementById(screenName).classList.add('active');
         }
 
-        function resetBoard(data) {
-            const cells = document.querySelectorAll('.cell');
-            cells.forEach(cell => {
-                cell.textContent = '';
-                cell.className = 'cell';
-            });
-            document.getElementById('game-status').textContent = data.message;
-        }
-
-        function updatePlayers(players) {
-            players.forEach(player => {
-                if (player.symbol === 'X') {
-                    document.getElementById('player1-name').textContent = player.name;
-                    document.getElementById('player1').className = 'player active';
-                } else {
-                    document.getElementById('player2-name').textContent = player.name;
-                    document.getElementById('player2').className = 'player';
-                }
-            });
-        }
-
-        function updateGameStatus(data) {
-            let status = `Tour de ${data.currentPlayer === 'X' ? document.getElementById('player1-name').textContent : document.getElementById('player2-name').textContent}`;
-            
-            if (data.winner) {
-                status = `🎉 ${data.winner === 'X' ? document.getElementById('player1-name').textContent : document.getElementById('player2-name').textContent} a gagné !`;
-            } else if (data.gameOver) {
-                status = '🤝 Match nul !';
-            }
-            
+        function updateStatus(currentPlayer) {
+            const status = currentPlayer === mySymbol ? 
+                '🎯 Votre tour (' + mySymbol + ')' : 
+                '⏳ Tour de l\'adversaire (' + currentPlayer + ')';
             document.getElementById('game-status').textContent = status;
-            
-            // Mettre à jour les joueurs actifs
-            if (data.currentPlayer === 'X') {
-                document.getElementById('player1').classList.add('active');
-                document.getElementById('player2').classList.remove('active');
-            } else {
-                document.getElementById('player1').classList.remove('active');
-                document.getElementById('player2').classList.add('active');
-            }
         }
 
-        function addChatMessage(player, message) {
+        function addMessage(player, message) {
             const chat = document.getElementById('chat-messages');
             const messageElement = document.createElement('div');
             messageElement.innerHTML = `<strong>${player}:</strong> ${message}`;
@@ -404,16 +237,12 @@
 
         // Entrée pour le chat
         document.getElementById('chat-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
+            if (e.key === 'Enter') sendMessage();
         });
 
         // Entrée pour le nom
-        document.getElementById('playerName').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                joinGame();
-            }
+        document.getElementById('player-name').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') joinGame();
         });
     </script>
 </body>
