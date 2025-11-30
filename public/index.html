@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>GameHub - Morpion Multiplayer</title>
+<title>GameHub - Morpion Multijoueur</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <style>
@@ -62,15 +62,13 @@ header{display:flex;justify-content:space-between;align-items:center;padding:20p
 .game-stats{display:flex;justify-content:space-between;align-items:center;font-size:.9rem;color:var(--dark-gray)}
 .online-dot{width:8px;height:8px;background:var(--success);border-radius:50%;display:inline-block;margin-right:8px;animation:pulse 2s infinite}
 
-/* Animations */
-@keyframes pulse{0%{opacity:1}50%{opacity:.5}100%{opacity:1}}
-@keyframes slideInUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
-@keyframes bounceIn{0%{opacity:0;transform:scale(.3)}50%{opacity:1;transform:scale(1.05)}70%{transform:scale(.9)}100%{opacity:1;transform:scale(1)}}
-
 /* Leaderboard */
 .leaderboard-container{background:var(--light);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
 .leaderboard-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .leaderboard-title{font-size:1.4rem;color:var(--primary)}
+.leaderboard-filters{display:flex;gap:8px}
+.filter-btn{padding:6px 12px;border-radius:6px;border:1px solid var(--gray);background:var(--light);cursor:pointer;transition:var(--transition);font-size:0.875rem}
+.filter-btn.active{background:var(--primary);color:var(--light);border-color:var(--primary)}
 .leaderboard-list{list-style:none}
 .leaderboard-item{display:flex;align-items:center;padding:10px;border-radius:10px;margin-bottom:8px;background:var(--gray);transition:var(--transition)}
 .leaderboard-item.you{background:rgba(108,99,255,.06);border-left:4px solid var(--primary)}
@@ -100,28 +98,12 @@ header{display:flex;justify-content:space-between;align-items:center;padding:20p
 .cell.o{color:var(--secondary);animation:bounceIn .3s var(--bounce)}
 .cell.win{background:var(--success);color:var(--light);border-color:var(--success)}
 
-/* Chat */
-.chat-container{background:var(--gray);border-radius:var(--radius);padding:1rem;margin-top:1rem;max-height:300px;display:flex;flex-direction:column}
-.chat-messages{flex:1;overflow-y:auto;margin-bottom:1rem}
-.chat-message{padding:0.5rem;margin-bottom:0.5rem;background:var(--light);border-radius:var(--radius)}
-.chat-input{display:flex;gap:0.5rem}
-.chat-input input{flex:1;padding:0.5rem;border:1px solid var(--gray);border-radius:var(--radius)}
-.chat-input button{padding:0.5rem 1rem;background:var(--primary);color:var(--light);border:0;border-radius:var(--radius);cursor:pointer}
-
 /* Modal */
 .modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
 .modal.active{display:flex;animation:fadeIn .3s}
 .modal-content{background:var(--light);border-radius:var(--radius);padding:1.5rem;max-width:500px;width:90%;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);position:relative;animation:slideInUp .3s var(--bounce)}
 .modal-close{position:absolute;top:1rem;right:1rem;background:none;border:0;font-size:1.5rem;cursor:pointer;color:var(--dark-gray)}
 .modal-title{font-size:1.5rem;color:var(--primary);margin-bottom:1rem}
-
-/* Achievements */
-.achievements-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem}
-.achievement-card{background:var(--gray);border-radius:var(--radius);padding:1rem;text-align:center;transition:var(--transition)}
-.achievement-card.unlocked{background:rgba(108,99,255,.1);border:2px solid var(--primary)}
-.achievement-icon{font-size:2.5rem;margin-bottom:0.5rem}
-.achievement-name{font-weight:700;margin-bottom:0.5rem}
-.achievement-desc{font-size:0.875rem;color:var(--dark-gray)}
 
 /* Toast */
 .toast{position:fixed;top:20px;right:20px;background:var(--success);color:var(--light);padding:1rem;border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:1001;display:flex;align-items:center;gap:0.75rem;transform:translateX(150%);transition:transform .3s var(--bounce)}
@@ -131,11 +113,25 @@ header{display:flex;justify-content:space-between;align-items:center;padding:20p
 .toast.info{background:var(--info)}
 .toast-icon{font-size:1.5rem}
 
+/* Chat */
+.chat-container{background:var(--gray);border-radius:var(--radius);padding:1rem;margin-top:1rem;max-height:300px;display:flex;flex-direction:column}
+.chat-messages{flex:1;overflow-y:auto;margin-bottom:1rem}
+.chat-message{padding:0.5rem;margin-bottom:0.5rem;background:var(--light);border-radius:var(--radius)}
+.chat-input{display:flex;gap:0.5rem}
+.chat-input input{flex:1;padding:0.5rem;border:1px solid var(--gray);border-radius:var(--radius)}
+.chat-input button{padding:0.5rem 1rem;background:var(--primary);color:var(--light);border:0;border-radius:var(--radius);cursor:pointer}
+
 /* Forms */
 .form-group{margin-bottom:1rem}
 .form-group label{display:block;margin-bottom:0.5rem;font-weight:600}
 .form-group input{width:100%;padding:0.75rem;border:1px solid var(--gray);border-radius:var(--radius);font-size:1rem}
 .form-actions{display:flex;gap:0.5rem;margin-top:1.5rem}
+
+/* Animations */
+@keyframes pulse{0%{opacity:1}50%{opacity:.5}100%{opacity:1}}
+@keyframes slideInUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+@keyframes bounceIn{0%{opacity:0;transform:scale(.3)}50%{opacity:1;transform:scale(1.05)}70%{transform:scale(.9)}100%{opacity:1;transform:scale(1)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 
 /* Responsive */
 @media (max-width:768px){
@@ -151,8 +147,6 @@ header{display:flex;justify-content:space-between;align-items:center;padding:20p
   .nav-tabs{flex-direction:column}
   .games-grid{grid-template-columns:1fr}
 }
-
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 </style>
 </head>
 <body>
@@ -168,7 +162,6 @@ header{display:flex;justify-content:space-between;align-items:center;padding:20p
         <div class="user-name" id="user-name">Joueur</div>
       </div>
       <button id="theme-toggle" class="control-btn" title="Changer le thème"><i class="fas fa-moon"></i></button>
-      <button id="sound-toggle" class="control-btn" title="Activer/Désactiver le son"><i class="fas fa-volume-up"></i></button>
       <button id="auth-btn" class="control-btn" title="Connexion"><i class="fas fa-user"></i></button>
     </div>
   </header>
@@ -176,23 +169,21 @@ header{display:flex;justify-content:space-between;align-items:center;padding:20p
   <div class="nav-tabs">
     <div class="nav-tab active" data-tab="home">Accueil</div>
     <div class="nav-tab" data-tab="games">Jouer</div>
-    <div class="nav-tab" data-tab="leaderboard">Classement</div>
     <div class="nav-tab" data-tab="multiplayer">Multijoueur</div>
-    <div class="nav-tab" data-tab="achievements">Succès</div>
   </div>
 
   <!-- HOME -->
   <section id="home" class="section active">
     <div class="hero">
       <h1>Bienvenue sur MorpionHub</h1>
-      <p>Plateforme de morpion multijoueur avec système d'authentification et classement en temps réel !</p>
+      <p>Plateforme de morpion multijoueur avec chat en temps réel !</p>
       <button class="cta-button" id="start-btn"><i class="fas fa-play"></i> Commencer à jouer</button>
     </div>
     <div class="games-grid">
       <div class="game-card" data-game="morpion">
         <div class="game-image"><i class="fas fa-times"></i></div>
         <div class="game-content">
-          <h3>Morpion</h3>
+          <h3>Morpion Multijoueur</h3>
           <p>Jouez contre l'IA ou affrontez d'autres joueurs en ligne.</p>
           <div class="game-stats">
             <div><span class="online-dot"></span><span id="morpion-players">0</span> joueurs</div>
@@ -208,62 +199,31 @@ header{display:flex;justify-content:space-between;align-items:center;padding:20p
     <h2 style="color:var(--light);text-align:center;margin-bottom:12px">Choisissez votre mode de jeu</h2>
     <div class="games-grid">
       <div class="game-card" data-game="morpion">
-        <div class="game-image"><i class="fas fa-times"></i></div>
+        <div class="game-image"><i class="fas fa-robot"></i></div>
         <div class="game-content">
-          <h3>Morpion</h3>
-          <p>IA avancée et multijoueur en temps réel.</p>
-          <div class="game-stats">
-            <button class="cta-button" style="padding:8px 16px;width:100%" onclick="openGame('morpion')">Jouer</button>
-          </div>
+          <h3>Morpion Solo</h3>
+          <p>Affrontez l'IA à différents niveaux de difficulté.</p>
+        </div>
+      </div>
+      <div class="game-card" data-game="morpion-multi">
+        <div class="game-image" style="background:linear-gradient(135deg,#FF6584,#FF9E7D)"><i class="fas fa-users"></i></div>
+        <div class="game-content">
+          <h3>Morpion Multijoueur</h3>
+          <p>Jouez contre de vrais adversaires en temps réel.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- LEADERBOARD -->
-  <section id="leaderboard" class="section">
-    <div class="leaderboard-container">
-      <div class="leaderboard-header">
-        <h3 class="leaderboard-title">Classement Global</h3>
-      </div>
-      <ul id="leaderboard-list" class="leaderboard-list">
-        <li class="leaderboard-item">
-          <div class="rank rank-1">1</div>
-          <div style="display:flex;align-items:center;gap:10px">
-            <div class="player-avatar">P</div>
-            <div class="player-name">ProGamer</div>
-          </div>
-          <div class="player-score">1250 pts</div>
-        </li>
-        <li class="leaderboard-item">
-          <div class="rank rank-2">2</div>
-          <div style="display:flex;align-items:center;gap:10px">
-            <div class="player-avatar">M</div>
-            <div class="player-name">MasterPlayer</div>
-          </div>
-          <div class="player-score">1100 pts</div>
-        </li>
-        <li class="leaderboard-item">
-          <div class="rank rank-3">3</div>
-          <div style="display:flex;align-items:center;gap:10px">
-            <div class="player-avatar">G</div>
-            <div class="player-name">GameChanger</div>
-          </div>
-          <div class="player-score">980 pts</div>
-        </li>
-      </ul>
-    </div>
-  </section>
-
   <!-- MULTIPLAYER -->
   <section id="multiplayer" class="section">
-    <h2 style="color:var(--light);text-align:center;margin-bottom:12px">Multijoueur en Ligne</h2>
+    <h2 style="color:var(--light);text-align:center;margin-bottom:12px">Multijoueur en Temps Réel</h2>
     <div class="games-grid">
       <div class="game-card" data-game="morpion-multi">
         <div class="game-image" style="background:linear-gradient(135deg,#FF6584,#FF9E7D)"><i class="fas fa-users"></i></div>
         <div class="game-content">
-          <h3>Salle Multijoueur</h3>
-          <p>Rejoignez une partie en ligne contre de vrais joueurs.</p>
+          <h3>Salle Morpion Multijoueur</h3>
+          <p>Rejoignez une partie en ligne avec chat intégré.</p>
           <div class="game-stats">
             <div><span class="online-dot"></span><span id="morpion-online">0</span> en ligne</div>
             <div><button class="cta-button join-room" data-game="morpion" style="padding:6px 10px;font-size:.9rem">Rejoindre</button></div>
@@ -273,40 +233,12 @@ header{display:flex;justify-content:space-between;align-items:center;padding:20p
     </div>
   </section>
 
-  <!-- ACHIEVEMENTS -->
-  <section id="achievements" class="section">
-    <div class="leaderboard-container">
-      <div class="leaderboard-header">
-        <h3 class="leaderboard-title">Mes Succès</h3>
-        <div class="score-display">Total: <span id="achievements-count">0</span>/6 débloqués</div>
-      </div>
-      <div id="achievements-grid" class="achievements-grid">
-        <div class="achievement-card">
-          <div class="achievement-icon">🏆</div>
-          <div class="achievement-name">Première Victoire</div>
-          <div class="achievement-desc">Gagnez votre première partie</div>
-        </div>
-        <div class="achievement-card">
-          <div class="achievement-icon">🧠</div>
-          <div class="achievement-name">Stratège</div>
-          <div class="achievement-desc">Gagnez 10 parties</div>
-        </div>
-        <div class="achievement-card">
-          <div class="achievement-icon">🌐</div>
-          <div class="achievement-name">Joueur En Ligne</div>
-          <div class="achievement-desc">Jouez en multijoueur</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- MORPION GAME -->
+  <!-- GAME CONTAINER - MORPION -->
   <div id="morpion" class="game-container" aria-hidden="true">
     <div class="game-header">
       <button class="back-button" id="morpion-back"><i class="fas fa-arrow-left"></i> Retour</button>
       <div class="game-title">Morpion</div>
       <div class="score-display">Score: <span id="morpion-score">0</span></div>
-      <button class="instruction-button" id="morpion-info"><i class="fas fa-info-circle"></i> Instructions</button>
       <button class="reset-button" id="morpion-reset"><i class="fas fa-redo"></i> Nouvelle partie</button>
     </div>
     
@@ -315,11 +247,6 @@ header{display:flex;justify-content:space-between;align-items:center;padding:20p
       <button class="mode-button" data-mode="robot-medium"><i class="fas fa-robot"></i> Moyen</button>
       <button class="mode-button" data-mode="robot-hard"><i class="fas fa-robot"></i> Difficile</button>
       <button class="mode-button" data-mode="online"><i class="fas fa-wifi"></i> En Ligne</button>
-    </div>
-    
-    <div id="morpion-instructions" style="display:none;margin-bottom:12px">
-      <h4>Comment jouer :</h4>
-      <p>Alignez trois symboles pour gagner. En ligne, vous jouez contre de vrais adversaires.</p>
     </div>
     
     <div class="morpion-container">
@@ -405,84 +332,375 @@ class RealGameServer {
     this.socket = null;
     this.connected = false;
     this.serverUrl = window.location.origin;
-    this.token = localStorage.getItem('gamehub-token');
   }
 
   async connect() {
     return new Promise((resolve, reject) => {
       try {
-        this.socket = io(this.serverUrl, {
-          transports: ['websocket', 'polling']
-        });
-
+        this.socket = io(this.serverUrl);
         this.socket.on('connect', () => {
           this.connected = true;
           console.log('🔗 Connecté au serveur MorpionHub');
           this.setupSocketEvents();
           resolve();
         });
-
-        this.socket.on('disconnect', () => {
-          this.connected = false;
-          console.log('🔌 Déconnecté du serveur');
-        });
-
-        this.socket.on('connect_error', (error) => {
-          console.error('Erreur de connexion:', error);
-          reject(error);
-        });
-
+        this.socket.on('connect_error', reject);
       } catch (error) {
-        console.error('Erreur d initialisation:', error);
         reject(error);
       }
     });
   }
 
   setupSocketEvents() {
-    this.socket.on('player-joined', (data) => {
-      this.handlePlayerJoined(data);
+    // Multijoueur
+    this.socket.on('waiting-for-player', (data) => {
+      if (window.morpionGame && window.morpionGame.mode === 'online') {
+        document.getElementById('morpion-status').textContent = data.message;
+      }
     });
 
-    this.socket.on('game-start', (data) => {
-      this.handleGameStart(data);
+    this.socket.on('game-started', (data) => {
+      if (window.morpionGame && window.morpionGame.mode === 'online') {
+        window.morpionGame.handleGameStartMulti(data);
+      }
     });
 
-    this.socket.on('morpion-update', (data) => {
-      this.handleMorpionUpdate(data);
+    this.socket.on('move-made-multi', (data) => {
+      if (window.morpionGame && window.morpionGame.mode === 'online') {
+        window.morpionGame.handleOpponentMoveMulti(data);
+      }
     });
 
-    this.socket.on('game-chat', (data) => {
-      this.handleChatMessage(data);
+    this.socket.on('game-reset-multi', (data) => {
+      if (window.morpionGame && window.morpionGame.mode === 'online') {
+        window.morpionGame.handleGameResetMulti(data);
+      }
     });
 
-    this.socket.on('global-stats-update', (data) => {
-      this.handleGlobalStatsUpdate(data);
+    this.socket.on('new-message-multi', (data) => {
+      if (window.chatSystem) {
+        window.chatSystem.addMessage(data);
+      }
+    });
+
+    this.socket.on('opponent-left', (data) => {
+      window.store.showToast(data.message, 'warning');
+      if (window.morpionGame) {
+        window.morpionGame.mode = 'robot-easy';
+        document.getElementById('morpion-chat').style.display = 'none';
+      }
     });
   }
 
-  // Authentification
-  async register(userData) {
-    try {
-      const response = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userData)
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        this.token = data.token;
-        localStorage.setItem('gamehub-token', data.token);
-        localStorage.setItem('gamehub-user', JSON.stringify(data.user));
-        return data.user;
-      } else {
-        throw new Error(data.error);
-      }
-    } catch (error) {
-      throw new Error('Erreur de connexion au serveur');
+  // Multijoueur
+  async joinMorpionMulti(playerName) {
+    if (!this.connected) await this.connect();
+    this.socket.emit('join-morpion-multi', { playerName });
+  }
+
+  sendMoveMulti(gameId, move) {
+    if (this.connected) {
+      this.socket.emit('morpion-move-multi', { gameId, move });
     }
+  }
+
+  sendMessageMulti(gameId, message) {
+    if (this.connected) {
+      this.socket.emit('send-message-multi', { gameId, message });
+    }
+  }
+}
+
+// =========================
+// JEU MORPION MULTIJOUEUR
+// =========================
+let morpionGame = {
+  board: [],
+  currentPlayer: 'X',
+  gameActive: false,
+  mode: 'robot-easy',
+  score: 0,
+  gameId: null,
+  players: [],
+
+  init() {
+    this.board = Array(9).fill('');
+    this.currentPlayer = 'X';
+    this.gameActive = true;
+    this.updateDisplay();
+    this.updateStatus();
+  },
+
+  // Mode solo contre IA
+  makeMove(position) {
+    if (!this.gameActive || this.board[position] !== '') return false;
+
+    this.board[position] = this.currentPlayer;
+    this.updateDisplay();
+
+    const winner = this.checkWinner();
+    if (winner) {
+      this.handleGameEnd(winner);
+      return true;
+    }
+
+    if (this.isBoardFull()) {
+      this.handleGameEnd(null);
+      return true;
+    }
+
+    this.switchPlayer();
+    this.updateStatus();
+
+    // Tour de l'IA
+    if (this.mode.startsWith('robot') && this.currentPlayer === 'O') {
+      setTimeout(() => {
+        const aiMove = this.getAIMove();
+        this.makeMove(aiMove);
+      }, 500);
+    }
+
+    return true;
+  },
+
+  // Mode multijoueur
+  makeMoveMulti(position) {
+    if (!this.gameActive || this.board[position] !== '' || this.currentPlayer !== this.getMySymbol()) return false;
+
+    // Envoyer le mouvement au serveur
+    window.server.sendMoveMulti(this.gameId, position);
+    return true;
+  },
+
+  handleGameStartMulti(data) {
+    this.gameId = data.gameId;
+    this.players = data.players;
+    this.board = data.board;
+    this.currentPlayer = data.currentPlayer;
+    this.gameActive = true;
+    
+    // Afficher le chat
+    document.getElementById('morpion-chat').style.display = 'block';
+    document.getElementById('online-players').style.display = 'block';
+    document.getElementById('player-count').textContent = '2';
+    
+    // Mettre à jour l'affichage
+    this.updateDisplay();
+    this.updateStatusMulti();
+    
+    window.store.showToast('Partie multijoueur commencée!', 'success');
+  },
+
+  handleOpponentMoveMulti(data) {
+    this.board[data.move] = data.symbol;
+    this.currentPlayer = data.currentPlayer;
+    this.updateDisplay();
+    
+    if (data.winner) {
+      this.handleGameEndMulti(data.winner);
+    } else if (data.isDraw) {
+      this.handleGameEndMulti(null);
+    } else {
+      this.updateStatusMulti();
+    }
+  },
+
+  handleGameResetMulti(data) {
+    this.board = data.board;
+    this.currentPlayer = data.currentPlayer;
+    this.gameActive = true;
+    this.updateDisplay();
+    this.updateStatusMulti();
+    window.store.showToast('Nouvelle partie!', 'info');
+  },
+
+  getMySymbol() {
+    const user = window.auth.getCurrentUser();
+    if (!user || !this.players) return 'X';
+    const player = this.players.find(p => p.name === user.username);
+    return player ? player.symbol : 'X';
+  },
+
+  getAIMove() {
+    // IA simple - choisit une case aléatoire
+    const availableMoves = this.board
+      .map((cell, index) => cell === '' ? index : null)
+      .filter(index => index !== null);
+    return availableMoves[Math.floor(Math.random() * availableMoves.length)];
+  },
+
+  checkWinner() {
+    const lines = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+
+    for (const [a,b,c] of lines) {
+      if (this.board[a] && this.board[a] === this.board[b] && this.board[a] === this.board[c]) {
+        return this.board[a];
+      }
+    }
+    return null;
+  },
+
+  isBoardFull() {
+    return this.board.every(cell => cell !== '');
+  },
+
+  switchPlayer() {
+    this.currentPlayer = this.currentPlayer === 'X' ? 'O' : 'X';
+  },
+
+  handleGameEnd(winner) {
+    this.gameActive = false;
+    if (winner === 'X') {
+      this.score += 10;
+      this.updateScoreDisplay();
+    }
+    this.updateStatus(winner);
+  },
+
+  handleGameEndMulti(winner) {
+    this.gameActive = false;
+    this.updateStatusMulti(winner);
+  },
+
+  updateDisplay() {
+    const boardElement = document.getElementById('morpion-board');
+    if (!boardElement) return;
+
+    boardElement.innerHTML = '';
+    this.board.forEach((cell, index) => {
+      const cellElement = document.createElement('div');
+      cellElement.className = `cell ${cell.toLowerCase()}`;
+      cellElement.textContent = cell;
+      cellElement.addEventListener('click', () => this.handleCellClick(index));
+      boardElement.appendChild(cellElement);
+    });
+  },
+
+  handleCellClick(position) {
+    if (this.mode === 'online') {
+      this.makeMoveMulti(position);
+    } else {
+      this.makeMove(position);
+    }
+  },
+
+  updateStatus(winner = null) {
+    const statusElement = document.getElementById('morpion-status');
+    if (!statusElement) return;
+
+    if (winner) {
+      statusElement.textContent = winner === 'X' ? 'Vous avez gagné ! 🎉' : 'L\'IA a gagné !';
+    } else if (winner === null) {
+      statusElement.textContent = 'Match nul !';
+    } else {
+      statusElement.textContent = this.currentPlayer === 'X' ? 'Votre tour (X)' : 'Tour de l\'IA (O)';
+    }
+  },
+
+  updateStatusMulti(winner = null) {
+    const statusElement = document.getElementById('morpion-status');
+    if (!statusElement) return;
+
+    const mySymbol = this.getMySymbol();
+    
+    if (winner) {
+      statusElement.textContent = winner === mySymbol ? 'Vous avez gagné ! 🎉' : 'Vous avez perdu !';
+    } else if (winner === null) {
+      statusElement.textContent = 'Match nul !';
+    } else {
+      statusElement.textContent = this.currentPlayer === mySymbol ? 
+        'Votre tour (' + mySymbol + ')' : 
+        'Tour de l\'adversaire (' + this.currentPlayer + ')';
+    }
+  },
+
+  updateScoreDisplay() {
+    const scoreElement = document.getElementById('morpion-score');
+    if (scoreElement) {
+      scoreElement.textContent = this.score;
+    }
+  },
+
+  async setMode(mode) {
+    this.mode = mode;
+    
+    if (this.mode === 'online') {
+      const user = window.auth.getCurrentUser();
+      if (user) {
+        try {
+          await window.server.joinMorpionMulti(user.username);
+          document.getElementById('morpion-status').textContent = 'En attente d\'un adversaire...';
+          document.getElementById('online-players').style.display = 'block';
+        } catch (error) {
+          window.store.showToast('Erreur de connexion', 'error');
+          this.mode = 'robot-easy';
+        }
+      } else {
+        window.store.showToast('Connectez-vous pour jouer en ligne', 'warning');
+        this.mode = 'robot-easy';
+      }
+    } else {
+      document.getElementById('morpion-chat').style.display = 'none';
+      document.getElementById('online-players').style.display = 'none';
+      this.gameId = null;
+    }
+    
+    this.init();
+  }
+};
+
+// =========================
+// SYSTÈME DE CHAT
+// =========================
+class ChatSystem {
+  constructor() {
+    this.messages = [];
+  }
+
+  addMessage(data) {
+    this.messages.push(data);
+    this.updateDisplay();
+  }
+
+  updateDisplay() {
+    const chatMessages = document.getElementById('morpion-chat-messages');
+    if (!chatMessages) return;
+
+    chatMessages.innerHTML = '';
+    this.messages.forEach(msg => {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = 'chat-message';
+      messageDiv.innerHTML = `<strong>${msg.player}:</strong> ${msg.message}`;
+      chatMessages.appendChild(messageDiv);
+    });
+
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  sendMessage() {
+    const input = document.getElementById('morpion-chat-input');
+    const message = input.value.trim();
+    
+    if (message && window.morpionGame.gameId) {
+      window.server.sendMessageMulti(window.morpionGame.gameId, message);
+      input.value = '';
+    }
+  }
+}
+
+// =========================
+// SYSTÈMES D'AUTHENTIFICATION ET STOCKAGE
+// =========================
+class AuthSystem {
+  constructor() {
+    this.currentUser = null;
+    this.token = localStorage.getItem('gamehub-token');
+    this.userData = JSON.parse(localStorage.getItem('gamehub-user') || 'null');
+    if (this.userData) this.currentUser = this.userData;
   }
 
   async login(username, password) {
@@ -492,127 +710,18 @@ class RealGameServer {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
       });
-      
       const data = await response.json();
-      
       if (data.success) {
+        this.currentUser = data.user;
         this.token = data.token;
         localStorage.setItem('gamehub-token', data.token);
         localStorage.setItem('gamehub-user', JSON.stringify(data.user));
-        return data.user;
+        this.updateUI();
+        window.store.showToast('Connexion réussie!', 'success');
+        return true;
       } else {
         throw new Error(data.error);
       }
-    } catch (error) {
-      throw new Error('Erreur de connexion au serveur');
-    }
-  }
-
-  // Gestion des parties
-  async joinMorpion(playerName) {
-    if (!this.connected) await this.connect();
-
-    return new Promise((resolve, reject) => {
-      this.socket.emit('join-morpion', { playerName });
-      
-      this.socket.once('game-start', (data) => {
-        resolve(data);
-      });
-
-      this.socket.once('waiting-for-player', (data) => {
-        resolve(data);
-      });
-
-      setTimeout(() => reject(new Error('Timeout de connexion')), 5000);
-    });
-  }
-
-  sendMorpionMove(gameId, move) {
-    if (this.connected) {
-      this.socket.emit('morpion-move', { gameId, move });
-    }
-  }
-
-  sendChatMessage(message, gameId) {
-    if (this.connected) {
-      this.socket.emit('game-chat', { message, gameId });
-    }
-  }
-
-  // Gestion des événements
-  handlePlayerJoined(data) {
-    console.log('Joueur rejoint:', data);
-    if (window.morpionGame && window.morpionGame.mode === 'online') {
-      document.getElementById('player-count').textContent = data.room.players.length;
-    }
-  }
-
-  handleGameStart(data) {
-    if (window.morpionGame && window.morpionGame.mode === 'online') {
-      window.morpionGame.handleGameStart(data);
-    }
-  }
-
-  handleMorpionUpdate(data) {
-    if (window.morpionGame && window.morpionGame.mode === 'online') {
-      window.morpionGame.handleOpponentMove(data);
-    }
-  }
-
-  handleChatMessage(data) {
-    if (window.chatSystem && data.gameId) {
-      window.chatSystem.addMessage(data.gameId, {
-        type: 'player',
-        playerName: data.playerName,
-        message: data.message,
-        timestamp: new Date()
-      });
-    }
-  }
-
-  handleGlobalStatsUpdate(data) {
-    this.updateOnlineDisplays(data);
-  }
-
-  updateOnlineDisplays(stats) {
-    document.getElementById('morpion-players').textContent = stats.onlinePlayers || 0;
-    document.getElementById('morpion-online').textContent = stats.onlinePlayers || 0;
-  }
-
-  async getStats() {
-    try {
-      const response = await fetch('/api/stats');
-      return await response.json();
-    } catch (error) {
-      console.error('Erreur chargement stats:', error);
-      return { onlinePlayers: Math.floor(Math.random() * 50) + 10 };
-    }
-  }
-}
-
-// =========================
-// SYSTÈME D'AUTHENTIFICATION
-// =========================
-class AuthSystem {
-  constructor() {
-    this.currentUser = null;
-    this.token = localStorage.getItem('gamehub-token');
-    this.userData = JSON.parse(localStorage.getItem('gamehub-user') || 'null');
-    
-    if (this.userData) {
-      this.currentUser = this.userData;
-    }
-  }
-
-  async login(username, password) {
-    try {
-      const user = await window.server.login(username, password);
-      this.currentUser = user;
-      this.token = window.server.token;
-      
-      this.updateUI();
-      window.store.showToast('Connexion réussie!', 'success');
-      return true;
     } catch (error) {
       window.store.showToast(error.message, 'error');
       return false;
@@ -621,13 +730,23 @@ class AuthSystem {
 
   async register(userData) {
     try {
-      const user = await window.server.register(userData);
-      this.currentUser = user;
-      this.token = window.server.token;
-      
-      this.updateUI();
-      window.store.showToast('Compte créé avec succès!', 'success');
-      return true;
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData)
+      });
+      const data = await response.json();
+      if (data.success) {
+        this.currentUser = data.user;
+        this.token = data.token;
+        localStorage.setItem('gamehub-token', data.token);
+        localStorage.setItem('gamehub-user', JSON.stringify(data.user));
+        this.updateUI();
+        window.store.showToast('Compte créé avec succès!', 'success');
+        return true;
+      } else {
+        throw new Error(data.error);
+      }
     } catch (error) {
       window.store.showToast(error.message, 'error');
       return false;
@@ -650,17 +769,14 @@ class AuthSystem {
   updateUI() {
     const userInfo = document.getElementById('user-info');
     const authBtn = document.getElementById('auth-btn');
-    
     if (this.isLoggedIn()) {
       userInfo.style.display = 'flex';
       document.getElementById('user-name').textContent = this.currentUser.username;
       document.getElementById('user-avatar').textContent = this.currentUser.username.charAt(0).toUpperCase();
       authBtn.innerHTML = '<i class="fas fa-sign-out-alt"></i>';
-      authBtn.title = 'Déconnexion';
     } else {
       userInfo.style.display = 'none';
       authBtn.innerHTML = '<i class="fas fa-user"></i>';
-      authBtn.title = 'Connexion';
     }
   }
 
@@ -669,16 +785,11 @@ class AuthSystem {
   }
 }
 
-// =========================
-// SYSTÈME DE STOCKAGE
-// =========================
 class RealGameStore {
   constructor() {
     this.state = {
       user: null,
-      settings: this.loadSettings(),
-      achievements: this.loadAchievements(),
-      gameStats: this.loadGameStats()
+      settings: this.loadSettings()
     };
   }
 
@@ -692,525 +803,20 @@ class RealGameStore {
     };
   }
 
-  loadAchievements() {
-    const saved = localStorage.getItem('gamehub-achievements');
-    const defaultAchievements = [
-      { id: 'first_win', name: 'Première Victoire', description: 'Gagnez votre première partie', icon: '🏆', unlocked: false },
-      { id: 'morpion_champion', name: 'Champion du Morpion', description: 'Gagnez 10 parties de morpion', icon: '❌', unlocked: false },
-      { id: 'level_5', name: 'Niveau 5', description: 'Atteignez le niveau 5', icon: '⭐', unlocked: false },
-      { id: 'online_player', name: 'Joueur En Ligne', description: 'Jouez votre première partie en ligne', icon: '🌐', unlocked: false },
-      { id: 'perfect_game', name: 'Partie Parfaite', description: 'Gagnez sans que l\'adversaire ne joue', icon: '✨', unlocked: false },
-      { id: 'comeback', name: 'Comeback', description: 'Gagnez après avoir été mené', icon: '↩️', unlocked: false }
-    ];
-    
-    if (saved) {
-      const savedAchs = JSON.parse(saved);
-      return defaultAchievements.map(ach => {
-        const savedAch = savedAchs.find(s => s.id === ach.id);
-        return savedAch ? { ...ach, unlocked: savedAch.unlocked } : ach;
-      });
-    }
-    
-    return defaultAchievements;
-  }
-
-  loadGameStats() {
-    const saved = localStorage.getItem('gamehub-stats');
-    return saved ? JSON.parse(saved) : {
-      morpion: { wins: 0, losses: 0, score: 0, totalGames: 0 }
-    };
-  }
-
   saveSettings() {
     localStorage.setItem('gamehub-settings', JSON.stringify(this.state.settings));
-  }
-
-  saveAchievements() {
-    localStorage.setItem('gamehub-achievements', JSON.stringify(this.state.achievements));
-  }
-
-  saveGameStats() {
-    localStorage.setItem('gamehub-stats', JSON.stringify(this.state.gameStats));
-  }
-
-  async updateUserStats(gameResult) {
-    if (!window.auth.isLoggedIn()) return;
-
-    this.state.gameStats.morpion.wins += gameResult.won ? 1 : 0;
-    this.state.gameStats.morpion.losses += gameResult.won ? 0 : 1;
-    this.state.gameStats.morpion.score += gameResult.score || 0;
-    this.state.gameStats.morpion.totalGames += 1;
-    
-    this.saveGameStats();
-    this.checkAchievements(gameResult);
-  }
-
-  checkAchievements(gameResult) {
-    let unlockedAny = false;
-
-    if (gameResult.won && this.state.gameStats.morpion.wins === 1) {
-      this.unlockAchievement('first_win');
-      unlockedAny = true;
-    }
-
-    if (this.state.gameStats.morpion.wins >= 10) {
-      this.unlockAchievement('morpion_champion');
-      unlockedAny = true;
-    }
-
-    if (gameResult.online) {
-      this.unlockAchievement('online_player');
-      unlockedAny = true;
-    }
-
-    if (unlockedAny) {
-      this.saveAchievements();
-    }
-  }
-
-  unlockAchievement(achievementId) {
-    const achievement = this.state.achievements.find(a => a.id === achievementId);
-    if (achievement && !achievement.unlocked) {
-      achievement.unlocked = true;
-      this.showToast(`Succès débloqué: ${achievement.name}`, 'success');
-      return true;
-    }
-    return false;
   }
 
   showToast(message, type = 'success') {
     const toast = document.getElementById('toast');
     toast.querySelector('.toast-message').textContent = message;
     toast.className = `toast ${type} show`;
-    
-    setTimeout(() => {
-      toast.classList.remove('show');
-    }, 3000);
+    setTimeout(() => toast.classList.remove('show'), 3000);
   }
 }
 
 // =========================
-// IA POUR MORPION
-// =========================
-class MorpionAI {
-  constructor(difficulty = 'medium') {
-    this.difficulty = difficulty;
-  }
-
-  getMove(board, player = 'O') {
-    switch(this.difficulty) {
-      case 'easy':
-        return this.getEasyMove(board);
-      case 'medium':
-        return this.getMediumMove(board, player);
-      case 'hard':
-        return this.getBestMove(board, player);
-      default:
-        return this.getEasyMove(board);
-    }
-  }
-
-  getBestMove(board, player) {
-    let bestScore = -Infinity;
-    let bestMove = null;
-
-    for (let i = 0; i < 9; i++) {
-      if (board[i] === '') {
-        board[i] = player;
-        const score = this.minimax(board, 0, false, player);
-        board[i] = '';
-
-        if (score > bestScore) {
-          bestScore = score;
-          bestMove = i;
-        }
-      }
-    }
-
-    return bestMove;
-  }
-
-  minimax(board, depth, isMaximizing, player) {
-    const opponent = player === 'X' ? 'O' : 'X';
-    const winner = this.checkWinner(board);
-
-    if (winner === player) return 10 - depth;
-    if (winner === opponent) return depth - 10;
-    if (this.isBoardFull(board)) return 0;
-
-    if (isMaximizing) {
-      let bestScore = -Infinity;
-      for (let i = 0; i < 9; i++) {
-        if (board[i] === '') {
-          board[i] = player;
-          const score = this.minimax(board, depth + 1, false, player);
-          board[i] = '';
-          bestScore = Math.max(score, bestScore);
-        }
-      }
-      return bestScore;
-    } else {
-      let bestScore = Infinity;
-      for (let i = 0; i < 9; i++) {
-        if (board[i] === '') {
-          board[i] = opponent;
-          const score = this.minimax(board, depth + 1, true, player);
-          board[i] = '';
-          bestScore = Math.min(score, bestScore);
-        }
-      }
-      return bestScore;
-    }
-  }
-
-  getMediumMove(board, player) {
-    const opponent = player === 'X' ? 'O' : 'X';
-    
-    // Essayer de gagner
-    for (let i = 0; i < 9; i++) {
-      if (board[i] === '') {
-        board[i] = player;
-        if (this.checkWinner(board) === player) {
-          board[i] = '';
-          return i;
-        }
-        board[i] = '';
-      }
-    }
-
-    // Bloquer l'adversaire
-    for (let i = 0; i < 9; i++) {
-      if (board[i] === '') {
-        board[i] = opponent;
-        if (this.checkWinner(board) === opponent) {
-          board[i] = '';
-          return i;
-        }
-        board[i] = '';
-      }
-    }
-
-    // Prendre le centre si disponible
-    if (board[4] === '') return 4;
-
-    // Prendre les coins
-    const corners = [0, 2, 6, 8];
-    const availableCorners = corners.filter(i => board[i] === '');
-    if (availableCorners.length > 0) {
-      return availableCorners[Math.floor(Math.random() * availableCorners.length)];
-    }
-
-    // Sinon mouvement aléatoire
-    return this.getEasyMove(board);
-  }
-
-  getEasyMove(board) {
-    const availableMoves = board
-      .map((cell, index) => cell === '' ? index : null)
-      .filter(index => index !== null);
-    
-    return availableMoves[Math.floor(Math.random() * availableMoves.length)];
-  }
-
-  checkWinner(board) {
-    const lines = [
-      [0,1,2],[3,4,5],[6,7,8],
-      [0,3,6],[1,4,7],[2,5,8],
-      [0,4,8],[2,4,6]
-    ];
-
-    for (const [a,b,c] of lines) {
-      if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-        return board[a];
-      }
-    }
-
-    return null;
-  }
-
-  isBoardFull(board) {
-    return board.every(cell => cell !== '');
-  }
-}
-
-// =========================
-// SYSTÈME DE CHAT
-// =========================
-class ChatSystem {
-  constructor() {
-    this.messages = new Map();
-  }
-
-  addMessage(gameId, messageData) {
-    if (!this.messages.has(gameId)) {
-      this.messages.set(gameId, []);
-    }
-    
-    const roomMessages = this.messages.get(gameId);
-    roomMessages.push(messageData);
-    
-    if (roomMessages.length > 50) {
-      roomMessages.splice(0, roomMessages.length - 50);
-    }
-    
-    this.updateChatDisplay(gameId);
-  }
-
-  updateChatDisplay(gameId) {
-    const chatMessages = document.getElementById('morpion-chat-messages');
-    if (!chatMessages) return;
-
-    const messages = this.messages.get(gameId) || [];
-    chatMessages.innerHTML = '';
-
-    messages.forEach(msg => {
-      const messageDiv = document.createElement('div');
-      messageDiv.className = 'chat-message';
-      
-      if (msg.type === 'system') {
-        messageDiv.innerHTML = `<em>${msg.message}</em>`;
-        messageDiv.style.fontStyle = 'italic';
-        messageDiv.style.color = 'var(--dark-gray)';
-      } else {
-        messageDiv.innerHTML = `<strong>${msg.playerName}:</strong> ${msg.message}`;
-      }
-      
-      chatMessages.appendChild(messageDiv);
-    });
-
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-  }
-}
-
-// =========================
-// JEU MORPION
-// =========================
-let morpionGame = {
-  board: [],
-  currentPlayer: 'X',
-  gameActive: false,
-  mode: 'robot-easy',
-  ai: null,
-  score: 0,
-  gameId: null,
-
-  init() {
-    this.board = Array(9).fill('');
-    this.currentPlayer = 'X';
-    this.gameActive = true;
-    this.ai = new MorpionAI(this.mode.replace('robot-', ''));
-    
-    this.updateDisplay();
-    this.updateStatus();
-  },
-
-  makeMove(position) {
-    if (!this.gameActive || this.board[position] !== '') return false;
-
-    this.board[position] = this.currentPlayer;
-    this.updateDisplay();
-
-    const winner = this.checkWinner();
-    if (winner) {
-      this.handleGameEnd(winner);
-      return true;
-    }
-
-    if (this.isBoardFull()) {
-      this.handleGameEnd(null);
-      return true;
-    }
-
-    this.switchPlayer();
-    this.updateStatus();
-
-    // Tour de l'IA ou envoi au serveur
-    if (this.mode.startsWith('robot') && this.currentPlayer === 'O') {
-      setTimeout(() => {
-        const aiMove = this.ai.getMove([...this.board], 'O');
-        this.makeMove(aiMove);
-      }, 500);
-    } else if (this.mode === 'online' && this.gameId) {
-      window.server.sendMorpionMove(this.gameId, position);
-    }
-
-    return true;
-  },
-
-  handleOpponentMove(data) {
-    if (this.mode === 'online' && this.currentPlayer === 'O' && this.gameActive) {
-      this.board[data.move] = 'O';
-      this.updateDisplay();
-
-      const winner = data.winner;
-      if (winner) {
-        this.handleGameEnd(winner);
-      } else if (data.gameOver) {
-        this.handleGameEnd(null);
-      } else {
-        this.switchPlayer();
-        this.updateStatus();
-      }
-    }
-  },
-
-  handleGameStart(data) {
-    if (this.mode === 'online') {
-      this.gameId = data.gameId;
-      document.getElementById('player-count').textContent = '2';
-      this.updateStatus();
-      
-      if (window.chatSystem) {
-        window.chatSystem.addMessage(this.gameId, {
-          type: 'system',
-          message: 'Partie commencée!'
-        });
-      }
-    }
-  },
-
-  checkWinner() {
-    return this.ai.checkWinner(this.board);
-  },
-
-  isBoardFull() {
-    return this.board.every(cell => cell !== '');
-  },
-
-  switchPlayer() {
-    this.currentPlayer = this.currentPlayer === 'X' ? 'O' : 'X';
-  },
-
-  handleGameEnd(winner) {
-    this.gameActive = false;
-    
-    if (winner) {
-      this.highlightWinningCells(winner);
-      if (winner === 'X') {
-        this.score += 10;
-        window.store.updateUserStats({
-          game: 'morpion',
-          won: true,
-          score: 10,
-          online: this.mode === 'online'
-        });
-      }
-    } else {
-      this.score += 5;
-      window.store.updateUserStats({
-        game: 'morpion',
-        won: false,
-        score: 5,
-        online: this.mode === 'online'
-      });
-    }
-
-    this.updateStatus(winner);
-    this.updateScoreDisplay();
-  },
-
-  highlightWinningCells(winner) {
-    const lines = [
-      [0,1,2],[3,4,5],[6,7,8],
-      [0,3,6],[1,4,7],[2,5,8],
-      [0,4,8],[2,4,6]
-    ];
-
-    for (const line of lines) {
-      const [a,b,c] = line;
-      if (this.board[a] && this.board[a] === this.board[b] && this.board[a] === this.board[c]) {
-        line.forEach(index => {
-          const cell = document.querySelectorAll('#morpion-board .cell')[index];
-          cell.classList.add('win');
-        });
-        break;
-      }
-    }
-  },
-
-  updateDisplay() {
-    const boardElement = document.getElementById('morpion-board');
-    if (!boardElement) return;
-
-    boardElement.innerHTML = '';
-    this.board.forEach((cell, index) => {
-      const cellElement = document.createElement('div');
-      cellElement.className = `cell ${cell.toLowerCase()}`;
-      cellElement.textContent = cell;
-      cellElement.addEventListener('click', () => this.handleCellClick(index));
-      boardElement.appendChild(cellElement);
-    });
-  },
-
-  handleCellClick(position) {
-    if (this.mode === 'online' && this.currentPlayer === 'O') {
-      window.store.showToast("En attente de l'adversaire...", 'info');
-      return;
-    }
-
-    this.makeMove(position);
-  },
-
-  updateStatus(winner = null) {
-    const statusElement = document.getElementById('morpion-status');
-    if (!statusElement) return;
-
-    if (winner) {
-      statusElement.textContent = winner === 'X' ? 'Vous avez gagné ! 🎉' : 'L\'IA a gagné !';
-    } else if (winner === null && !this.gameActive) {
-      statusElement.textContent = 'Match nul !';
-    } else {
-      const playerText = this.currentPlayer === 'X' ? 'Votre tour (X)' : 
-                        this.mode === 'online' ? 'Tour de l\'adversaire (O)' : 'Tour de l\'IA (O)';
-      statusElement.textContent = playerText;
-    }
-  },
-
-  updateScoreDisplay() {
-    const scoreElement = document.getElementById('morpion-score');
-    if (scoreElement) {
-      scoreElement.textContent = this.score;
-    }
-  },
-
-  async setMode(mode) {
-    this.mode = mode;
-    
-    if (this.mode === 'online') {
-      document.getElementById('morpion-chat').style.display = 'block';
-      document.getElementById('online-players').style.display = 'block';
-      
-      const user = window.auth.getCurrentUser();
-      if (user) {
-        try {
-          const gameData = await window.server.joinMorpion(user.username);
-          if (gameData.gameId) {
-            this.gameId = gameData.gameId;
-            window.chatSystem.addMessage(this.gameId, {
-              type: 'system',
-              message: `${user.username} a rejoint la partie`
-            });
-          }
-        } catch (error) {
-          window.store.showToast('Erreur de connexion: ' + error.message, 'error');
-          this.mode = 'robot-easy';
-        }
-      } else {
-        window.store.showToast('Connectez-vous pour jouer en ligne', 'warning');
-        this.mode = 'robot-easy';
-      }
-    } else {
-      document.getElementById('morpion-chat').style.display = 'none';
-      document.getElementById('online-players').style.display = 'none';
-      this.gameId = null;
-    }
-    
-    this.init();
-  }
-};
-
-// =========================
-// INITIALISATION GLOBALE
+// INITIALISATION
 // =========================
 let server, auth, store, chatSystem;
 
@@ -1220,44 +826,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function initializeApp() {
   try {
-    // Initialiser les systèmes
     server = new RealGameServer();
     auth = new AuthSystem();
     store = new RealGameStore();
     chatSystem = new ChatSystem();
 
-    // Exposer globalement
     window.server = server;
     window.auth = auth;
     window.store = store;
     window.chatSystem = chatSystem;
     window.morpionGame = morpionGame;
 
-    // Appliquer les paramètres
     applySettings();
-
-    // Configurer les écouteurs d'événements
     setupEventListeners();
+    auth.updateUI();
 
-    // Charger les données initiales
-    await loadInitialData();
-
-    console.log('🎮 MorpionHub initialisé avec succès!');
+    console.log('🎮 MorpionHub Multijoueur initialisé!');
 
   } catch (error) {
-    console.error('Erreur d initialisation:', error);
-    store.showToast('Erreur lors du chargement', 'error');
+    console.error('Erreur:', error);
+    store.showToast('Erreur de chargement', 'error');
   }
 }
 
 function applySettings() {
-  // Thème
   document.body.classList.toggle('dark-mode', store.state.settings.dark);
   document.getElementById('theme-toggle').innerHTML = store.state.settings.dark ? 
     '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
-
-  // Mettre à jour l'utilisateur
-  auth.updateUI();
 }
 
 function setupEventListeners() {
@@ -1266,30 +861,25 @@ function setupEventListeners() {
     tab.addEventListener('click', () => switchTab(tab.dataset.tab));
   });
 
-  // Contrôles d'en-tête
+  // Contrôles
   document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
   document.getElementById('auth-btn').addEventListener('click', handleAuthButton);
-  document.getElementById('logo').addEventListener('click', () => switchTab('home'));
-
-  // Boutons d'action
   document.getElementById('start-btn').addEventListener('click', () => switchTab('games'));
 
-  // Cartes de jeu
+  // Jeux
   document.querySelectorAll('.game-card[data-game="morpion"]').forEach(card => {
     card.addEventListener('click', () => openGame('morpion'));
   });
 
-  // Boutons multijoueur
   document.querySelectorAll('.join-room').forEach(btn => {
     btn.addEventListener('click', function() {
       joinMultiplayerRoom('morpion');
     });
   });
 
-  // Jeu - Morpion
+  // Morpion
   document.getElementById('morpion-back').addEventListener('click', closeGames);
   document.getElementById('morpion-reset').addEventListener('click', () => morpionGame.init());
-  document.getElementById('morpion-info').addEventListener('click', () => toggleInstructions('morpion'));
   document.querySelectorAll('#morpion .mode-button').forEach(btn => {
     btn.addEventListener('click', function() {
       document.querySelectorAll('#morpion .mode-button').forEach(b => b.classList.remove('active'));
@@ -1297,71 +887,47 @@ function setupEventListeners() {
       morpionGame.setMode(this.dataset.mode);
     });
   });
-  document.getElementById('morpion-chat-send').addEventListener('click', sendChatMessage);
-  document.getElementById('morpion-chat-input').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendChatMessage();
-  });
 
-  // Modals
-  document.querySelectorAll('.modal-close').forEach(btn => {
-    btn.addEventListener('click', () => {
-      btn.closest('.modal').classList.remove('active');
-    });
+  // Chat
+  document.getElementById('morpion-chat-send').addEventListener('click', () => chatSystem.sendMessage());
+  document.getElementById('morpion-chat-input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') chatSystem.sendMessage();
   });
 
   // Authentification
   document.getElementById('auth-submit').addEventListener('click', handleAuthSubmit);
   document.getElementById('auth-switch').addEventListener('click', toggleAuthMode);
   document.getElementById('logout-btn').addEventListener('click', () => auth.logout());
+  document.querySelectorAll('.modal-close').forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.closest('.modal').classList.remove('active');
+    });
+  });
 }
 
-async function loadInitialData() {
-  auth.updateUI();
-  loadAchievements();
-  
-  // Charger les stats en ligne
-  try {
-    const stats = await server.getStats();
-    server.updateOnlineDisplays(stats);
-  } catch (error) {
-    console.error('Erreur chargement stats:', error);
-  }
-}
-
-// =========================
-// FONCTIONS D'INTERFACE
-// =========================
+// Fonctions d'interface
 function switchTab(tabName) {
   document.querySelectorAll('.nav-tab').forEach(tab => {
     tab.classList.toggle('active', tab.dataset.tab === tabName);
   });
-
   document.querySelectorAll('.section').forEach(section => {
     section.classList.toggle('active', section.id === tabName);
   });
 }
 
 function openGame(gameId) {
-  if (!auth.isLoggedIn() && gameId === 'morpion') {
-    store.showToast('Connectez-vous pour jouer', 'warning');
-    openAuthModal();
-    return;
-  }
-
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.game-container').forEach(g => g.classList.remove('active'));
-
-  const gameElement = document.getElementById(gameId);
-  gameElement.classList.add('active');
-
-  if (gameId === 'morpion') {
-    morpionGame.init();
+  document.getElementById('morpion').classList.add('active');
+  
+  if (gameId === 'morpion-multi') {
+    morpionGame.setMode('online');
+  } else {
+    morpionGame.setMode('robot-easy');
   }
 }
 
 function closeGames() {
   switchTab('games');
-  document.querySelectorAll('.game-container').forEach(g => g.classList.remove('active'));
 }
 
 function joinMultiplayerRoom(game) {
@@ -1370,37 +936,7 @@ function joinMultiplayerRoom(game) {
     openAuthModal();
     return;
   }
-
-  store.showToast(`Connexion à la partie ${game}...`, 'info');
-  openGame(game);
-  
-  if (game === 'morpion') {
-    morpionGame.setMode('online');
-  }
-}
-
-function sendChatMessage() {
-  const input = document.getElementById('morpion-chat-input');
-  const message = input.value.trim();
-  
-  if (message) {
-    const user = auth.getCurrentUser();
-    if (user && morpionGame.gameId) {
-      server.sendChatMessage(message, morpionGame.gameId);
-      chatSystem.addMessage(morpionGame.gameId, {
-        type: 'player',
-        playerName: user.username,
-        message: message,
-        timestamp: new Date()
-      });
-      input.value = '';
-    }
-  }
-}
-
-function toggleInstructions(gameId) {
-  const element = document.getElementById(`${gameId}-instructions`);
-  element.style.display = element.style.display === 'none' ? 'block' : 'none';
+  openGame('morpion-multi');
 }
 
 function toggleTheme() {
@@ -1409,7 +945,6 @@ function toggleTheme() {
   applySettings();
 }
 
-// Authentification
 function handleAuthButton() {
   if (auth.isLoggedIn()) {
     openProfileModal();
@@ -1420,9 +955,6 @@ function handleAuthButton() {
 
 function openAuthModal() {
   document.getElementById('auth-modal').classList.add('active');
-  document.getElementById('auth-modal-title').textContent = 'Connexion';
-  document.getElementById('auth-submit').textContent = 'Se connecter';
-  document.getElementById('auth-switch').textContent = 'Créer un compte';
 }
 
 function openProfileModal() {
@@ -1440,24 +972,16 @@ function openProfileModal() {
 async function handleAuthSubmit() {
   const username = document.getElementById('auth-username').value.trim();
   const password = document.getElementById('auth-password').value;
-
   if (!username || !password) {
     store.showToast('Veuillez remplir tous les champs', 'warning');
     return;
   }
-
   const isLogin = document.getElementById('auth-submit').textContent === 'Se connecter';
-  
-  if (isLogin) {
-    const success = await auth.login(username, password);
-    if (success) {
-      document.getElementById('auth-modal').classList.remove('active');
-    }
-  } else {
-    const success = await auth.register({ username, password, email: `${username}@gamehub.com` });
-    if (success) {
-      document.getElementById('auth-modal').classList.remove('active');
-    }
+  const success = isLogin ? 
+    await auth.login(username, password) : 
+    await auth.register({ username, password, email: `${username}@gamehub.com` });
+  if (success) {
+    document.getElementById('auth-modal').classList.remove('active');
   }
 }
 
@@ -1465,7 +989,6 @@ function toggleAuthMode() {
   const title = document.getElementById('auth-modal-title');
   const submit = document.getElementById('auth-submit');
   const switchBtn = document.getElementById('auth-switch');
-
   if (submit.textContent === 'Se connecter') {
     title.textContent = 'Créer un compte';
     submit.textContent = 'Créer le compte';
@@ -1477,38 +1000,10 @@ function toggleAuthMode() {
   }
 }
 
-function loadAchievements() {
-  const grid = document.getElementById('achievements-grid');
-  const achievements = store.state.achievements;
-  let unlockedCount = 0;
-
-  grid.innerHTML = '';
-
-  achievements.forEach(achievement => {
-    if (achievement.unlocked) unlockedCount++;
-
-    const card = document.createElement('div');
-    card.className = `achievement-card ${achievement.unlocked ? 'unlocked' : ''}`;
-    
-    card.innerHTML = `
-      <div class="achievement-icon">${achievement.icon}</div>
-      <div class="achievement-name">${achievement.name}</div>
-      <div class="achievement-desc">${achievement.description}</div>
-    `;
-    
-    grid.appendChild(card);
-  });
-
-  document.getElementById('achievements-count').textContent = unlockedCount;
-}
-
 // Gestion des erreurs
 window.addEventListener('error', (e) => {
-  console.error('Global error:', e.error);
-});
-
-window.addEventListener('unhandledrejection', (e) => {
-  console.error('Unhandled promise rejection:', e.reason);
+  console.error('Erreur:', e.error);
+  store.showToast('Une erreur est survenue', 'error');
 });
 
 console.log('🚀 MorpionHub - Prêt à fonctionner!');
