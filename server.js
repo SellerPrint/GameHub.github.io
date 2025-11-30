@@ -12,6 +12,8 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = createServer(app);
+
+// Configuration CORS pour production
 const io = new Server(server, {
   cors: {
     origin: "*",
@@ -24,31 +26,19 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Routes
+// Routes essentielles pour Render
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
-});
-
-// Données
-const users = new Map();
-const games = new Map();
-const waitingPlayers = new Map();
-
-// Initialisation
-function initializeData() {
-  users.set('admin', {
-    id: '1',
-    username: 'admin',
-    password: bcrypt.hashSync('admin123', 12),
-    email: 'admin@gamehub.com',
-    stats: { totalGames: 0, wins: 0, totalScore: 0, level: 1 },
-    createdAt: new Date()
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    service: 'MorpionHub',
+    version: '1.0.0'
   });
-}
+});
 
 // API Routes
 app.post('/api/register', async (req, res) => {
@@ -63,7 +53,7 @@ app.post('/api/register', async (req, res) => {
       id: 'user-' + Date.now(),
       username,
       password: bcrypt.hashSync(password, 12),
-      email,
+      email: email || `${username}@morpionhub.com`,
       stats: { totalGames: 0, wins: 0, totalScore: 0, level: 1 },
       achievements: [],
       createdAt: new Date()
@@ -116,10 +106,41 @@ app.get('/api/stats', (req, res) => {
   const stats = {
     onlinePlayers: Array.from(games.values()).reduce((acc, game) => acc + game.players.length, 0),
     activeGames: games.size,
-    waitingPlayers: Array.from(waitingPlayers.values()).length
+    waitingPlayers: Array.from(waitingPlayers.values()).length,
+    totalUsers: users.size,
+    uptime: process.uptime()
   };
   res.json(stats);
 });
+
+// Données en mémoire (pour la version free)
+const users = new Map();
+const games = new Map();
+const waitingPlayers = new Map();
+
+// Initialisation des données
+function initializeData() {
+  // Créer un utilisateur admin par défaut
+  users.set('admin', {
+    id: '1',
+    username: 'admin',
+    password: bcrypt.hashSync('admin123', 12),
+    email: 'admin@morpionhub.com',
+    stats: { totalGames: 0, wins: 0, totalScore: 0, level: 1 },
+    createdAt: new Date()
+  });
+  
+  users.set('joueur1', {
+    id: '2',
+    username: 'joueur1',
+    password: bcrypt.hashSync('123456', 12),
+    email: 'joueur1@morpionhub.com',
+    stats: { totalGames: 0, wins: 0, totalScore: 0, level: 1 },
+    createdAt: new Date()
+  });
+  
+  console.log('📊 Données initialisées avec 2 utilisateurs par défaut');
+}
 
 // WebSocket Events - MULTIJOUEUR FONCTIONNEL
 io.on('connection', (socket) => {
@@ -250,10 +271,10 @@ io.on('connection', (socket) => {
     if (winner || isDraw) {
       setTimeout(() => {
         if (games.has(gameId)) {
-          games[gameId].board = Array(9).fill('');
-          games[gameId].currentPlayer = 'X';
+          games.get(gameId).board = Array(9).fill('');
+          games.get(gameId).currentPlayer = 'X';
           io.to(gameId).emit('game-reset-multi', { 
-            board: games[gameId].board,
+            board: games.get(gameId).board,
             currentPlayer: 'X'
           });
         }
@@ -265,13 +286,15 @@ io.on('connection', (socket) => {
   socket.on('send-message-multi', (data) => {
     const { gameId, message } = data;
     const game = games.get(gameId);
-    if (game && game.players[socket.id]) {
+    if (game) {
       const player = game.players.find(p => p.id === socket.id);
-      io.to(gameId).emit('new-message-multi', {
-        player: player.name,
-        message: message,
-        timestamp: new Date()
-      });
+      if (player) {
+        io.to(gameId).emit('new-message-multi', {
+          player: player.name,
+          message: message,
+          timestamp: new Date()
+        });
+      }
     }
   });
 
@@ -321,9 +344,14 @@ function checkWinner(board) {
 // Initialiser les données
 initializeData();
 
+// Port pour Render (IMPORTANT)
 const PORT = process.env.PORT || 10000;
+
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎮 GameHub Server sur le port ${PORT}`);
-  console.log(`📍 http://0.0.0.0:${PORT}`);
-  console.log(`✅ Multijoueur morpion ACTIVÉ et FONCTIONNEL !`);
+  console.log(`🎮 MorpionHub Server démarré sur le port ${PORT}`);
+  console.log(`📍 URL: http://0.0.0.0:${PORT}`);
+  console.log(`🚀 Prêt pour le déploiement Render !`);
+  console.log(`✅ Multijoueur activé`);
+  console.log(`✅ Health check: /health`);
+  console.log(`✅ ${users.size} utilisateurs chargés`);
 });
