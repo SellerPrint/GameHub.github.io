@@ -24,7 +24,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Routes de base
+// Routes
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -33,13 +33,10 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Données en mémoire avec discussions séparées
+// Données
 const users = new Map();
 const games = new Map();
 const waitingPlayers = new Map();
-const privateChats = new Map(); // Nouvelles discussions privées
-
-// Structure: privateChats.set(user1-user2, [messages])
 
 // Initialisation
 function initializeData() {
@@ -124,24 +121,19 @@ app.get('/api/stats', (req, res) => {
   res.json(stats);
 });
 
-// WebSocket Events avec discussions privées
+// WebSocket Events - MULTIJOUEUR FONCTIONNEL
 io.on('connection', (socket) => {
   console.log('🔗 Joueur connecté:', socket.id);
 
-  // Stocker l'username avec la socket
-  socket.on('user-connected', (userData) => {
-    socket.username = userData.username;
-    console.log(`👤 ${userData.username} connecté (${socket.id})`);
-  });
-
-  // REJOINDRE UNE PARTIE DE MORPION
-  socket.on('join-morpion', (data) => {
+  // REJOINDRE LE JEU MULTIJOUEUR
+  socket.on('join-morpion-multi', (data) => {
     const { playerName } = data;
     socket.username = playerName;
     
     const waitingPlayer = waitingPlayers.get('morpion');
     
     if (waitingPlayer && waitingPlayer.socketId !== socket.id) {
+      // Créer une nouvelle partie avec les deux joueurs
       const gameId = `morpion-${Date.now()}`;
       const game = {
         id: gameId,
@@ -170,16 +162,19 @@ io.on('connection', (socket) => {
       socket.join(gameId);
       io.to(waitingPlayer.socketId).join(gameId);
       
-      console.log(`🎮 Partie créée: ${playerName} vs ${waitingPlayer.playerName}`);
+      console.log(`🎮 Partie multijoueur créée: ${playerName} vs ${waitingPlayer.playerName}`);
 
-      io.to(gameId).emit('game-start', {
+      // Notifier les DEUX joueurs que la partie commence
+      io.to(gameId).emit('game-started', {
         gameId: gameId,
         players: game.players,
         currentPlayer: 'X',
-        message: 'Partie commencée!'
+        board: game.board,
+        message: 'Partie multijoueur commencée!'
       });
       
     } else {
+      // Aucun joueur en attente, mettre ce joueur en attente
       waitingPlayers.set('morpion', {
         socketId: socket.id,
         playerName: playerName,
@@ -194,8 +189,8 @@ io.on('connection', (socket) => {
     }
   });
 
-  // MOUVEMENT MORPION
-  socket.on('morpion-move', (data) => {
+  // FAIRE UN MOUVEMENT EN MULTIJOUEUR
+  socket.on('morpion-move-multi', (data) => {
     const { gameId, move } = data;
     const game = games.get(gameId);
     
@@ -220,24 +215,29 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // Effectuer le mouvement
     game.board[move] = currentPlayer.symbol;
     
+    // Vérifier victoire
     const winner = checkWinner(game.board);
     const isDraw = !winner && game.board.every(cell => cell !== '');
     
+    // Mettre à jour le tour
     game.currentPlayer = game.currentPlayer === 'X' ? 'O' : 'X';
     games.set(gameId, game);
     
-    io.to(gameId).emit('morpion-update', {
+    // Émettre le mouvement à tous les joueurs
+    io.to(gameId).emit('move-made-multi', {
       move,
       symbol: currentPlayer.symbol,
       playerName: currentPlayer.name,
-      winner: winner,
-      gameOver: winner || isDraw,
       board: game.board,
-      currentPlayer: game.currentPlayer
+      currentPlayer: game.currentPlayer,
+      winner,
+      isDraw
     });
 
+    // Mettre à jour les stats du gagnant
     if (winner && users.has(currentPlayer.name)) {
       const user = users.get(currentPlayer.name);
       user.stats.wins++;
@@ -246,113 +246,45 @@ io.on('connection', (socket) => {
       users.set(currentPlayer.name, user);
     }
 
+    // Réinitialiser si partie terminée
     if (winner || isDraw) {
       setTimeout(() => {
         if (games.has(gameId)) {
-          const endedGame = games.get(gameId);
-          endedGame.board = Array(9).fill('');
-          endedGame.currentPlayer = 'X';
-          games.set(gameId, endedGame);
-          
-          io.to(gameId).emit('morpion-reset', {
-            message: 'Nouvelle partie !',
-            board: endedGame.board,
-            currentPlayer: endedGame.currentPlayer
+          games[gameId].board = Array(9).fill('');
+          games[gameId].currentPlayer = 'X';
+          io.to(gameId).emit('game-reset-multi', { 
+            board: games[gameId].board,
+            currentPlayer: 'X'
           });
         }
       }, 3000);
     }
   });
 
-  // CHAT DE PARTIE (existant)
-  socket.on('game-chat', (data) => {
+  // CHAT MULTIJOUEUR
+  socket.on('send-message-multi', (data) => {
     const { gameId, message } = data;
     const game = games.get(gameId);
-    
-    if (game) {
+    if (game && game.players[socket.id]) {
       const player = game.players.find(p => p.id === socket.id);
-      if (player) {
-        io.to(gameId).emit('game-chat', {
-          message,
-          playerName: player.name,
-          timestamp: new Date()
-        });
-      }
+      io.to(gameId).emit('new-message-multi', {
+        player: player.name,
+        message: message,
+        timestamp: new Date()
+      });
     }
-  });
-
-  // NOUVEAU : CHAT PRIVÉ entre utilisateurs
-  socket.on('private-message', (data) => {
-    const { toUsername, message } = data;
-    const fromUsername = socket.username;
-    
-    if (!fromUsername || !toUsername) return;
-
-    // Créer une clé unique pour la conversation (toujours dans le même ordre)
-    const chatKey = [fromUsername, toUsername].sort().join('-');
-    
-    // Initialiser la conversation si elle n'existe pas
-    if (!privateChats.has(chatKey)) {
-      privateChats.set(chatKey, []);
-    }
-    
-    const chatMessage = {
-      from: fromUsername,
-      to: toUsername,
-      message: message,
-      timestamp: new Date(),
-      read: false
-    };
-    
-    // Ajouter le message à l'historique
-    privateChats.get(chatKey).push(chatMessage);
-    
-    // Envoyer le message à l'expéditeur et au destinataire
-    socket.emit('private-message-received', chatMessage);
-    
-    // Trouver le socket du destinataire
-    const recipientSocket = Array.from(io.sockets.sockets.values())
-      .find(s => s.username === toUsername);
-    
-    if (recipientSocket) {
-      recipientSocket.emit('private-message-received', chatMessage);
-    }
-  });
-
-  // NOUVEAU : Récupérer l'historique d'une conversation privée
-  socket.on('get-chat-history', (data) => {
-    const { otherUser } = data;
-    const currentUser = socket.username;
-    
-    if (!currentUser || !otherUser) return;
-    
-    const chatKey = [currentUser, otherUser].sort().join('-');
-    const history = privateChats.get(chatKey) || [];
-    
-    socket.emit('chat-history', {
-      otherUser: otherUser,
-      messages: history
-    });
-  });
-
-  // NOUVEAU : Lister les utilisateurs en ligne
-  socket.on('get-online-users', () => {
-    const onlineUsers = Array.from(io.sockets.sockets.values())
-      .map(s => s.username)
-      .filter(username => username && username !== socket.username)
-      .filter((username, index, arr) => arr.indexOf(username) === index); // Doublons
-    
-    socket.emit('online-users', onlineUsers);
   });
 
   // DÉCONNEXION
   socket.on('disconnect', () => {
     console.log('👋 Joueur déconnecté:', socket.id);
     
+    // Retirer des joueurs en attente
     if (waitingPlayers.get('morpion')?.socketId === socket.id) {
       waitingPlayers.delete('morpion');
     }
     
+    // Retirer des parties en cours
     games.forEach((game, gameId) => {
       const playerIndex = game.players.findIndex(p => p.id === socket.id);
       if (playerIndex !== -1) {
@@ -360,7 +292,7 @@ io.on('connection', (socket) => {
         const otherPlayer = game.players.find(p => p.id !== socket.id);
         
         if (otherPlayer) {
-          io.to(otherPlayer.id).emit('player-left', {
+          io.to(otherPlayer.id).emit('opponent-left', {
             message: `${playerName} s'est déconnecté`
           });
         }
@@ -368,11 +300,6 @@ io.on('connection', (socket) => {
         games.delete(gameId);
       }
     });
-
-    // Notifier que l'utilisateur est hors ligne
-    if (socket.username) {
-      socket.broadcast.emit('user-offline', socket.username);
-    }
   });
 });
 
@@ -398,5 +325,5 @@ const PORT = process.env.PORT || 10000;
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🎮 GameHub Server sur le port ${PORT}`);
   console.log(`📍 http://0.0.0.0:${PORT}`);
-  console.log(`💬 Système de chat privé activé !`);
+  console.log(`✅ Multijoueur morpion ACTIVÉ et FONCTIONNEL !`);
 });
