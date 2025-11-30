@@ -8,3 +8,12 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+    healthCheckPath: /health
+    autoDeploy: true
+
+  # Optionnel : Base de données si vous voulez étendre plus tard
+  # - type: pserv
+  #   name: morpionhub-db
+  #   env: node
+  #   plan: free
+  #   diskSizeGB: 1
