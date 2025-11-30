@@ -1,8 +1,8 @@
 {
-  "name": "morpionhub",
+  "name": "gamehub",
   "version": "1.0.0",
   "type": "module",
-  "description": "Morpion multijoueur avec chat en temps réel",
+  "description": "Plateforme de jeux multijoueur",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
